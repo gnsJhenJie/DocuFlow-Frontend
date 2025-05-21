@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -6,6 +7,47 @@ import { FileText, CheckCircle2, Clock, AlertTriangle, PlusCircle } from 'lucide
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockDocuments } from '@/lib/mockData'; // Using mock data for summaries
+import Image from 'next/image'; // Import next/image
+
+interface ActivityItem {
+  id: string;
+  text: string;
+  timestamp?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  dataAiHint?: string;
+}
+
+// Sample recent activities with optional images
+const recentActivities: ActivityItem[] = [
+  {
+    id: 'activity1',
+    text: 'Document "Q1 Marketing Strategy" submitted for review. A new cover image was added.',
+    imageUrl: 'https://placehold.co/48x48.png',
+    imageAlt: 'Q1 Marketing Strategy',
+    dataAiHint: 'strategy document',
+  },
+  {
+    id: 'activity2',
+    text: 'Document "Annual Financial Report" was rejected by Charlie Brown due to outdated figures.',
+    // No image for this activity
+  },
+  {
+    id: 'activity3',
+    text: 'New document "UX Design Principles" created by Alice Wonderland.',
+    imageUrl: 'https://placehold.co/48x48.png',
+    imageAlt: 'UX Design Principles',
+    dataAiHint: 'design book',
+  },
+  {
+    id: 'activity4',
+    text: 'Bob The Builder updated the "New Employee Onboarding Manual" with a revised welcome video thumbnail.',
+    imageUrl: 'https://placehold.co/48x48.png',
+    imageAlt: 'Onboarding Manual Update',
+    dataAiHint: 'employee handbook',
+  },
+];
+
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -94,18 +136,40 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>A log of recent document changes and reviews.</CardDescription>
+          <CardDescription>A log of recent document changes and reviews, now with images.</CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Placeholder for recent activity log */}
-          <p className="text-muted-foreground">No recent activity to display. Activity logging will be implemented here.</p>
-          <ul className="mt-4 space-y-2">
-            <li className="text-sm">Document "Q1 Marketing Strategy" submitted for review.</li>
-            <li className="text-sm">Document "Annual Financial Report" rejected by Charlie Brown.</li>
-            <li className="text-sm">New document "UX Design Principles" created.</li>
-          </ul>
+          {recentActivities.length > 0 ? (
+            <ul className="space-y-4">
+              {recentActivities.map((activity) => (
+                <li key={activity.id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg shadow-sm">
+                  {activity.imageUrl && (
+                    <div className="flex-shrink-0 mt-0.5"> {/* Added mt-0.5 for better alignment with text */}
+                      <Image
+                        src={activity.imageUrl}
+                        alt={activity.imageAlt || 'Activity image'}
+                        width={48} // Increased size for better visibility
+                        height={48}
+                        className="rounded-md object-cover" // Changed to rounded-md and object-cover
+                        {...(activity.dataAiHint && {'data-ai-hint': activity.dataAiHint})}
+                      />
+                    </div>
+                  )}
+                  <div className="flex-grow">
+                    <p className="text-sm text-foreground">{activity.text}</p>
+                    {activity.timestamp && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{activity.timestamp}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground">No recent activity to display. Activity logging will be implemented here.</p>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
+
