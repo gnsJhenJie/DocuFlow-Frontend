@@ -10,17 +10,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import type { Role } from '@/lib/types';
 import { AppLogo } from '@/components/AppLogo';
-import { Github } from 'lucide-react';
+import { Github, Loader2 } from 'lucide-react'; // Added Loader2
 import { useToast } from '@/hooks/use-toast';
+import { apiClient } from '@/lib/apiClient';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('alice@example.com'); // Default for convenience
   const [password, setPassword] = useState('password'); // Default for convenience
-  const { login, loading } = useAuth();
+  const { login, loading: authLoading } = useAuth(); // Renamed loading to authLoading to avoid conflict
   const router = useRouter();
   const { toast } = useToast();
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isGithubLoading, setIsGithubLoading] = useState(false); // For future GitHub integration
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleEmailPasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       toast({ title: 'Login Error', description: 'Please enter email and password.', variant: 'destructive' });
@@ -38,35 +41,41 @@ export default function LoginPage() {
     }
   };
   
-  const handleOAuthLogin = async (provider: string) => {
-    // This function attempts to log in or register a user using details
-    // notionally obtained from an OAuth provider. The AuthContext's login function
-    // will call the backend API.
-    let oauthEmail = 'bob-editor@example.com'; // Example default for GitHub
-    let oauthName = 'Bob OAuth Editor';
-    let oauthRole: Role = 'editor';
-
-    if (provider === 'Google') {
-        oauthEmail = 'charlie-reviewer@example.com'; // Example default for Google
-        oauthName = 'Charlie OAuth Reviewer';
-        oauthRole = 'reviewer';
-    }
-    
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
     try {
-      // The AuthContext's login function is called with isOAuth: true.
-      // It will attempt to use apiClient.login, potentially with a placeholder password,
-      // and pass along name and role. The backend's /api/auth/login (or /register
-      // if the backend handles it) needs to accommodate this flow.
-      await login(oauthEmail, "OAUTH_PLACEHOLDER_PASSWORD", oauthRole, true, { name: oauthName, email: oauthEmail, role: oauthRole });
-      // AuthProvider should redirect on successful login
+      const response = await apiClient.request<{ url: string }>('/auth/google/url', { needsAuth: false });
+      if (response.url) {
+        window.location.href = response.url;
+      } else {
+        toast({ title: 'Google Login Error', description: 'Could not retrieve Google login URL.', variant: 'destructive'});
+        setIsGoogleLoading(false);
+      }
     } catch (error: any) {
        toast({
-        title: `${provider} Login Failed`,
-        description: error.message || `Could not log in with ${provider}. Ensure your backend supports this OAuth flow.`,
+        title: 'Google Login Failed',
+        description: error.message || 'Could not initiate Google login.',
         variant: 'destructive',
       });
+      setIsGoogleLoading(false);
     }
+    //setIsGoogleLoading(false); // Will be set to false above on error, or page navigates away
   };
+
+  const handleGitHubLogin = async () => {
+    setIsGithubLoading(true);
+    toast({
+      title: "GitHub Login Not Implemented",
+      description: "GitHub OAuth flow needs backend and frontend setup.",
+      variant: "default"
+    });
+    // Similar flow to Google:
+    // 1. Get /api/auth/github/url
+    // 2. window.location.href = data.url
+    // 3. Callback page /auth/github/callback (or a generic one) handles code exchange
+    setIsGithubLoading(false);
+  };
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -82,12 +91,14 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" onClick={() => handleOAuthLogin('Google')}>
-              <svg role="img" viewBox="0 0 24 24" className="mr-2 h-4 w-4"><path fill="currentColor" d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.05 1.05-2.36 1.84-4.05 1.84-4.76 0-8.64-3.89-8.64-8.64s3.88-8.64 8.64-8.64c2.18 0 3.93.89 5.39 2.23l2.62-2.62C18.09.74 15.49 0 12.48 0 5.88 0 0 5.88 0 12.48s5.88 12.48 12.48 12.48c7.05 0 12.14-4.76 12.14-12.32 0-.79-.07-1.55-.2-2.23H12.48z"></path></svg>
+            <Button variant="outline" onClick={handleGoogleLogin} disabled={isGoogleLoading || authLoading}>
+              {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
+                <svg role="img" viewBox="0 0 24 24" className="mr-2 h-4 w-4"><path fill="currentColor" d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.05 1.05-2.36 1.84-4.05 1.84-4.76 0-8.64-3.89-8.64-8.64s3.88-8.64 8.64-8.64c2.18 0 3.93.89 5.39 2.23l2.62-2.62C18.09.74 15.49 0 12.48 0 5.88 0 0 5.88 0 12.48s5.88 12.48 12.48 12.48c7.05 0 12.14-4.76 12.14-12.32 0-.79-.07-1.55-.2-2.23H12.48z"></path></svg>
+              }
               Google
             </Button>
-            <Button variant="outline" onClick={() => handleOAuthLogin('GitHub')}>
-              <Github className="mr-2 h-4 w-4" />
+            <Button variant="outline" onClick={handleGitHubLogin} disabled={isGithubLoading || authLoading}>
+              {isGithubLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Github className="mr-2 h-4 w-4" />}
               GitHub
             </Button>
           </div>
@@ -101,7 +112,7 @@ export default function LoginPage() {
               </span>
             </div>
           </div>
-          <form onSubmit={handleLogin} className="grid gap-4">
+          <form onSubmit={handleEmailPasswordLogin} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -111,6 +122,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={authLoading || isGoogleLoading || isGithubLoading}
               />
             </div>
              <div className="grid gap-2">
@@ -121,15 +133,17 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={authLoading || isGoogleLoading || isGithubLoading}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
+            <Button type="submit" className="w-full" disabled={authLoading || isGoogleLoading || isGithubLoading}>
+              {authLoading && !isGoogleLoading && !isGithubLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Login
             </Button>
           </form>
         </CardContent>
          <CardFooter className="text-center text-sm text-muted-foreground">
-            Login with Google or GitHub.
+            Sign in using your credentials or a provider.
         </CardFooter>
       </Card>
     </div>
