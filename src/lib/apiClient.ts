@@ -3,6 +3,7 @@
 import type { AuthResponse, PaginatedDocumentsResponse, Document, User, DocumentHistoryEntry } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
+console.log('[ApiClient] Using API_BASE_URL:', API_BASE_URL); // Added for debugging
 
 interface RequestOptions extends RequestInit {
   needsAuth?: boolean;
@@ -17,13 +18,11 @@ async function request<T>(
   const headers: HeadersInit = isFormData ? {} : { 'Content-Type': 'application/json' };
 
   if (needsAuth) {
-    const token = localStorage.getItem('docuflow_jwt_token');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('docuflow_jwt_token') : null;
     if (token) {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     } else {
-      // Handle cases where token is required but not found, e.g. redirect to login
-      // For now, just log it. In a real app, this might trigger a redirect.
-      console.warn(`Auth token not found for ${endpoint}`);
+      // console.warn(`Auth token not found for ${endpoint}`); // Reduced noise, token might not be needed for all authed routes initially
     }
   }
 
@@ -40,7 +39,6 @@ async function request<T>(
       try {
         errorData = await response.json();
       } catch (e) {
-        // Not a JSON response
         errorData = { detail: response.statusText || 'An unknown error occurred' };
       }
       console.error('API Error:', endpoint, response.status, errorData);
@@ -48,13 +46,12 @@ async function request<T>(
     }
 
     if (response.status === 204 || response.headers.get('content-length') === '0') {
-        // No content to parse
         return undefined as T;
     }
     return await response.json();
   } catch (error) {
     console.error(`API request failed for ${endpoint}:`, error);
-    throw error; // Re-throw to be caught by the caller
+    throw error;
   }
 }
 
@@ -81,9 +78,10 @@ export const apiClient = {
   deleteDocument: (id: string) => request<{ message: string }>(`/documents/${id}`, { method: 'DELETE' }),
   approveDocument: (id: string) => request<Document>(`/documents/${id}/approve`, { method: 'POST' }),
   rejectDocument: (id: string, reason: string) => request<Document>(`/documents/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
-  reassignReviewer: (id: string, newReviewerId: number) => request<Document>(`/documents/${id}/reassign`, { method: 'POST', body: JSON.stringify({ newReviewerId }) }), // API expects number
+  reassignReviewer: (documentId: string, newReviewerId: number) => request<Document>(`/documents/${documentId}/reassign`, { method: 'POST', body: JSON.stringify({ newReviewerId }) }),
   getDocumentHistory: (id: string) => request<DocumentHistoryEntry[]>(`/documents/${id}/history`),
 
   // Upload
   uploadImage: (formData: FormData) => request<{ imageUrl: string }>('/upload', { method: 'POST', body: formData, isFormData: true }),
 };
+

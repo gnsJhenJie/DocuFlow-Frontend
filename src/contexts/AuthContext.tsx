@@ -4,14 +4,15 @@
 import type { User, Role, AuthResponse } from '@/lib/types';
 import { apiClient } from '@/lib/apiClient';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter, usePathname } // Updated import to include usePathname
+from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
   login: (email: string, password?: string, role?: Role, isOAuth?: boolean, oAuthUser?: Partial<User>) => Promise<void>;
-  loginWithTokenAndUser: (token: string, apiUser: any) => void; // New method for OAuth
+  loginWithTokenAndUser: (token: string, apiUser: any) => void;
   logout: () => Promise<void>;
   fetchCurrentUser: () => Promise<void>;
 }
@@ -22,75 +23,101 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter(); // Initialize router
+  const router = useRouter();
+  const pathname = usePathname(); // Get current pathname
 
   useEffect(() => {
     const loadTokenAndUser = async () => {
-      console.log('[AuthContext] Checking session');
+      console.log('[AuthContext] Initializing session state...');
       const storedToken = localStorage.getItem('docuflow_jwt_token');
       if (storedToken) {
         setToken(storedToken);
-        // User will be fetched by fetchCurrentUser if token exists
+        // User will be fetched by fetchCurrentUser if token exists, triggered by token state change
+      } else {
+        setLoading(false); // No token, so not loading user from token
       }
-      setLoading(false); // Set loading false after initial token check
     };
     loadTokenAndUser();
   }, []);
 
   useEffect(() => {
-    if (token && !user && !loading) { // If token exists but user is not set, and not initially loading
+    if (token && !user) { // If token exists but user is not set
+      console.log('[AuthContext] Token found, fetching current user...');
       fetchCurrentUser();
+    } else if (!token && !user && !loading) { // No token, no user, and initial load attempt finished
+       // Only redirect if not on login or callback page
+      if (pathname !== '/login' && pathname !== '/auth/callback') {
+        console.log('[AuthContext] No token, redirecting to login from:', pathname);
+        router.push('/login');
+      }
     }
-  }, [token, user, loading]); // Rerun when token, user, or loading changes
+  }, [token, user, loading, pathname, router]); // Add pathname and router to dependencies
 
   const fetchCurrentUser = async () => {
+    if (!token) { // Do not attempt to fetch if there's no token
+      setLoading(false);
+      setUser(null); // Ensure user is null if no token
+       if (pathname !== '/login' && pathname !== '/auth/callback') {
+        console.log('[AuthContext] fetchCurrentUser: No token, redirecting to login from:', pathname);
+        router.push('/login');
+      }
+      return;
+    }
     setLoading(true);
     try {
       const currentUserFromApi = await apiClient.getCurrentUser();
       const frontendUser: User = {
         ...currentUserFromApi,
-        id: String(currentUserFromApi.id), // Ensure ID is string
+        id: String(currentUserFromApi.id),
       };
       setUser(frontendUser);
       console.log('[AuthContext] Current user fetched:', frontendUser);
     } catch (error) {
       console.error('[AuthContext] Failed to fetch current user:', error);
       localStorage.removeItem('docuflow_jwt_token');
-      setToken(null);
+      setToken(null); // This will trigger the useEffect above to redirect if needed
       setUser(null);
-      if (router && typeof window !== 'undefined' && window.location.pathname !== '/login' && window.location.pathname !== '/auth/callback') {
-         router.push('/login');
-      }
+      // Redirect is handled by the useEffect hook based on token/user state
     } finally {
       setLoading(false);
     }
   };
 
   const login = async (email: string, password?: string, role?: Role, isOAuth: boolean = false, oAuthUser?: Partial<User>) => {
-    console.log(`[AuthContext] User login attempt: ${email}, role: ${role}, isOAuth: ${isOAuth}`);
+    console.log(`[AuthContext] User login attempt: ${email}`);
     setLoading(true);
     try {
       let response: AuthResponse;
-      // Note: The generic login is kept for email/password, but true OAuth is handled by loginWithTokenAndUser
-      if (isOAuth && oAuthUser) {
-        // This path is less likely to be used if dedicated OAuth flow is implemented
-        response = await apiClient.login({ email, password: password || "oauth_placeholder_password", name: oAuthUser.name, role: oAuthUser.role || role });
-      } else if (password) {
+      if (password) { // Standard email/password login
         response = await apiClient.login({ email, password });
       } else {
-        throw new Error("Password is required for non-OAuth login.");
+        // This branch could be for an OAuth simulation or if backend supports passwordless with just email for certain flows.
+        // Based on current frontend, it's for OAuth, where backend's /auth/google/callback is the actual login mechanism.
+        // This generic `login` might not be directly called by a real OAuth flow initiated from frontend.
+        // The OAuth flow should use `getGoogleAuthUrl` then callback page handles `exchangeGoogleCode` then `loginWithTokenAndUser`.
+        // Keeping this for potential email-only login or testing, but primary OAuth is via dedicated methods.
+        console.warn("[AuthContext] Login called without password, assuming special flow (e.g., OAuth placeholder)");
+        // This path is unlikely to be hit by the Google OAuth flow now, which uses loginWithTokenAndUser.
+        // If it were for a different type of OAuth or passwordless, backend API call would differ.
+        // For now, assuming it's a fallback or test, we'd need a password or a different API.
+        // Let's make it call login with a placeholder for now if oauthUser is present, though this is not ideal.
+        if (isOAuth && oAuthUser) {
+             response = await apiClient.login({ email, password: "OAUTH_PLACEHOLDER_PASSWORD", name: oAuthUser.name, role: oAuthUser.role || role});
+        } else {
+            throw new Error("Password is required for this login type, or OAuth user details missing.");
+        }
       }
       
       const apiUser = response.user;
       const frontendUser: User = {
         ...apiUser,
-        id: String(apiUser.id), // Ensure ID is string
+        id: String(apiUser.id),
       };
       setUser(frontendUser);
-      setToken(response.token);
+      setToken(response.token); // This will trigger useEffect to fetch user if needed, or redirect.
       localStorage.setItem('docuflow_jwt_token', response.token);
-      console.log('[AuthContext] User logged in via email/password:', frontendUser);
-      router.push('/');
+      console.log('[AuthContext] User logged in (generic login):', frontendUser);
+      router.push('/'); // Redirect after successful login
     } catch (error) {
       console.error('[AuthContext] Login failed:', error);
       setUser(null);
@@ -106,15 +133,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     const frontendUser: User = {
       ...apiUser,
-      id: String(apiUser.id), // Ensure ID is string
-      // Ensure other fields match the User type, backend might not send all (e.g. avatarUrl might be null)
+      id: String(apiUser.id),
       avatarUrl: apiUser.avatarUrl || undefined, 
     };
     setUser(frontendUser);
-    setToken(newToken);
+    setToken(newToken); // This will trigger useEffect.
     localStorage.setItem('docuflow_jwt_token', newToken);
     console.log('[AuthContext] User logged in via OAuth token:', frontendUser);
-    setLoading(false);
+    setLoading(false); // Set loading false after user and token are set
     router.push('/'); // Redirect after successful OAuth login
   };
 
@@ -122,8 +148,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     console.log('[AuthContext] User logout');
     setLoading(true);
+    const currentToken = localStorage.getItem('docuflow_jwt_token');
     try {
-      await apiClient.logout();
+      if(currentToken) { // Only call API if token exists
+        await apiClient.logout();
+      }
     } catch (error) {
       console.error('[AuthContext] Logout API call failed, proceeding with client-side logout:', error);
     } finally {
@@ -131,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(null);
       localStorage.removeItem('docuflow_jwt_token');
       setLoading(false);
-      if (router) router.push('/login');
+      router.push('/login');
     }
   };
 
@@ -149,3 +178,4 @@ export const useAuth = () => {
   }
   return context;
 };
+
