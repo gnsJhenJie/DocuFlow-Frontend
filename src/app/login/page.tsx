@@ -10,18 +10,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import type { Role } from '@/lib/types';
 import { AppLogo } from '@/components/AppLogo';
-import { Github, Loader2 } from 'lucide-react'; // Added Loader2
+import { Github, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/apiClient';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('alice@example.com'); // Default for convenience
-  const [password, setPassword] = useState('password'); // Default for convenience
-  const { login, loading: authLoading } = useAuth(); // Renamed loading to authLoading to avoid conflict
+  const [email, setEmail] = useState('alice@example.com');
+  const [password, setPassword] = useState('password');
+  const { login, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isGithubLoading, setIsGithubLoading] = useState(false); // For future GitHub integration
+  const [isGithubLoading, setIsGithubLoading] = useState(false);
 
   const handleEmailPasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +44,7 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
-      const response = await apiClient.request<{ url: string }>('/auth/google/url', { needsAuth: false });
+      const response = await apiClient.getGoogleAuthUrl();
       if (response.url) {
         window.location.href = response.url;
       } else {
@@ -59,7 +59,7 @@ export default function LoginPage() {
       });
       setIsGoogleLoading(false);
     }
-    //setIsGoogleLoading(false); // Will be set to false above on error, or page navigates away
+    // No setIsGoogleLoading(false) here because the page will navigate away on success
   };
 
   const handleGitHubLogin = async () => {
@@ -143,7 +143,7 @@ export default function LoginPage() {
           </form>
         </CardContent>
          <CardFooter className="text-center text-sm text-muted-foreground">
-            Sign in using your credentials or a provider.
+             Sign in using your credentials or a provider.
         </CardFooter>
       </Card>
     </div>

@@ -64,13 +64,13 @@ export const apiClient = {
   login: (data: any) => request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(data), needsAuth: false }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   getCurrentUser: () => request<User>('/auth/me'),
+  getGoogleAuthUrl: () => request<{ url: string }>('/auth/google/url', { needsAuth: false }),
+  exchangeGoogleCode: (code: string) => request<AuthResponse>('/auth/google/callback', { method: 'POST', body: JSON.stringify({ code }), needsAuth: false }),
+
 
   // Users
-  getUsers: (role?: string) => {
-    const query = role ? `?role=${role}` : '';
-    return request<User[]>(`/users${query}`);
-  },
-  getReviewers: () => request<User[]>('/users/reviewers'),
+  getUsers: (params?: URLSearchParams) => request<User[]>(`/users${params ? `?${params.toString()}`: ''}`),
+  getReviewers: () => request<User[]>(`/users/reviewers`),
   updateUserRole: (userId: string, role: string) => request<User>(`/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
 
   // Documents

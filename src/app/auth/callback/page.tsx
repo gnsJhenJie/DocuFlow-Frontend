@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, Suspense } from 'react'; // Added Suspense
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/apiClient';
@@ -28,22 +28,18 @@ function OAuthCallbackContent() {
       return;
     }
 
-    if (code && !authLoading) { // Ensure not to run if auth is already processing something
-      apiClient.request<{ token: string; user: any }>('/auth/google/callback', {
-        method: 'POST',
-        body: JSON.stringify({ code }),
-        needsAuth: false, // This specific call sends code, not token
-      })
+    if (code && !authLoading) {
+      apiClient.exchangeGoogleCode(code)
         .then(res => {
           if (res.token && res.user) {
             loginWithTokenAndUser(res.token, res.user);
-            // AuthContext will redirect to '/'
+            // AuthContext will redirect to '/' or the intended page
           } else {
-            throw new Error('Token or user data missing in response.');
+            throw new Error('Token or user data missing in response from /api/auth/google/callback.');
           }
         })
         .catch(err => {
-          console.error('OAuth callback failed', err);
+          console.error('OAuth callback failed during code exchange:', err);
           toast({
             title: 'Login Failed',
             description: err.message || 'Failed to exchange OAuth code for token.',
@@ -52,10 +48,9 @@ function OAuthCallbackContent() {
           router.push('/login');
         });
     } else if (!code && !error && !authLoading) {
-      // No code and no error, something unexpected happened or direct access
       toast({
         title: 'Invalid Callback',
-        description: 'OAuth callback was accessed without a code or error.',
+        description: 'OAuth callback was accessed without a code or error parameter.',
         variant: 'destructive',
       });
       router.push('/login');
@@ -72,8 +67,6 @@ function OAuthCallbackContent() {
   );
 }
 
-
-// Wrap with Suspense for useSearchParams
 export default function OAuthCallbackPage() {
   return (
     <Suspense fallback={
