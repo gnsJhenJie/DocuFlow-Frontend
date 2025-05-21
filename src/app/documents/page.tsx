@@ -1,112 +1,164 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DocumentCard } from '@/components/documents/DocumentCard';
-import type { Document, ReviewStatus } from '@/lib/types';
-import { mockDocuments } from '@/lib/mockData';
+import type { Document, ReviewStatus, PaginatedDocumentsResponse } from '@/lib/types';
 import Link from 'next/link';
-import { PlusCircle, Search, Filter } from 'lucide-react';
+import { PlusCircle, Search, Filter, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { apiClient } from '@/lib/apiClient';
+import { useToast } from '@/hooks/use-toast';
+
+const DOCUMENTS_PER_PAGE = 9;
 
 export default function DocumentsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
+
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ReviewStatus | 'all'>('all');
-  const [sortBy, setSortBy] = useState('updatedAt_desc');
-  const [viewFilter, setViewFilter] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalPages, setTotalPages] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Filters from URL or local state
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('searchTerm') || '');
+  const [statusFilter, setStatusFilter] = useState<ReviewStatus | 'all'>(
+    (searchParams.get('status') as ReviewStatus | 'all') || 'all'
+  );
+  const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'updatedAt_desc');
+  const [viewFilter, setViewFilter] = useState<string | null>(searchParams.get('view'));
+
+
+  const buildApiParams = useCallback(() => {
+    const params = new URLSearchParams();
+    params.append('page', String(currentPage));
+    params.append('limit', String(DOCUMENTS_PER_PAGE));
+
+    if (searchTerm) params.append('searchTerm', searchTerm);
+    if (sortBy) params.append('sortBy', sortBy);
+    
+    // Handle view filter precedence
+    if (viewFilter === 'pending_my_review' && user) {
+      params.append('view', 'pending_my_review'); // Backend handles mapping this to reviewerId and status
+      // No need to set statusFilter if view is pending_my_review as API implies it
+    } else if (statusFilter !== 'all') {
+      params.append('status', statusFilter);
+    }
+    
+    // Role-based implicit filtering if not admin and no specific view
+    if (user && user.role === 'editor' && !viewFilter) {
+        params.append('authorId', user.id);
+    }
+    // If user.role === 'reviewer' and no specific view, backend might list docs they can review OR authored.
+    // The API allows explicit 'reviewerId' or 'authorId', so this might be complex for default 'reviewer' view.
+    // For now, relying on 'view=pending_my_review' or admin/editor specific views.
+
+    return params;
+  }, [currentPage, searchTerm, sortBy, statusFilter, viewFilter, user]);
+
+
+  const fetchDocuments = useCallback(async () => {
+    if (!user || authLoading) return;
+    setIsLoading(true);
+    try {
+      const params = buildApiParams();
+      const data: PaginatedDocumentsResponse = await apiClient.getDocuments(params);
+      setDocuments(data.documents);
+      setTotalPages(data.totalPages);
+      setCurrentPage(data.currentPage);
+    } catch (error: any) {
+      toast({
+        title: 'Error Fetching Documents',
+        description: error.message || 'Could not load documents.',
+        variant: 'destructive',
+      });
+      setDocuments([]); // Clear documents on error
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, authLoading, buildApiParams, toast]);
 
   useEffect(() => {
-    const initialStatus = searchParams.get('status') as ReviewStatus | null;
-    const currentView = searchParams.get('view');
+    // Initialize filters from URL params on mount
+    const initialSearchTerm = searchParams.get('searchTerm') || '';
+    const initialStatus = (searchParams.get('status') as ReviewStatus | 'all') || 'all';
+    const initialSortBy = searchParams.get('sortBy') || 'updatedAt_desc';
+    const initialView = searchParams.get('view');
+    const initialPage = parseInt(searchParams.get('page') || '1', 10);
 
-    setViewFilter(currentView);
+    setSearchTerm(initialSearchTerm);
+    setStatusFilter(initialStatus);
+    setSortBy(initialSortBy);
+    setViewFilter(initialView);
+    setCurrentPage(initialPage);
+  }, []); // Run only once on mount
 
-    if (currentView === 'pending_my_review') {
-      setStatusFilter('pending_review'); // This view implies pending_review status
-    } else if (initialStatus && ['draft', 'pending_review', 'approved', 'rejected'].includes(initialStatus)) {
-      setStatusFilter(initialStatus);
-    } else {
-      setStatusFilter('all'); // Default if no specific status or view implies status
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (!user) {
-      setDocuments([]);
-      return;
-    }
-
-    console.log('[DocumentsPage] Filtering: User:', user.id, 'Role:', user.role, 'Status:', statusFilter, 'View:', viewFilter, 'Search:', searchTerm);
-    let tempDocs = [...mockDocuments];
-
-    // Apply primary filter based on 'view'
+ useEffect(() => {
+    // This effect updates URL when local filter states change
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('searchTerm', searchTerm);
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    else params.delete('status');
+    if (sortBy !== 'updatedAt_desc') params.set('sortBy', sortBy);
+    else params.delete('sortBy');
+    if (viewFilter) params.set('view', viewFilter);
+    else params.delete('view');
+    if (currentPage > 1) params.set('page', String(currentPage));
+    else params.delete('page');
+    
+    // Conditional status filter based on view
     if (viewFilter === 'pending_my_review') {
-      tempDocs = tempDocs.filter(
-        doc => doc.reviewerId === user.id && doc.status === 'pending_review'
-      );
-    } else {
-      // General role-based filtering if no specific view takes precedence
-      if (user.role === 'editor') {
-        tempDocs = tempDocs.filter(doc => doc.authorId === user.id);
-      } else if (user.role === 'reviewer') {
-        // Reviewer sees docs they are assigned to review OR docs they authored.
-        tempDocs = tempDocs.filter(doc => doc.reviewerId === user.id || doc.authorId === user.id);
-      }
-      // Admin sees all docs (no initial filter on tempDocs which starts as all mockDocuments)
-      // Viewer logic could be added here if they have specific constraints beyond status
-
-      // Apply status filter (if not 'all' and not overridden by a view that implies status)
-      // If viewFilter was 'pending_my_review', statusFilter would be 'pending_review',
-      // and the specific filter for that view already handled the status.
-      // This is for general status filtering when no specific view is active.
-      if (statusFilter !== 'all') {
-        tempDocs = tempDocs.filter(doc => doc.status === statusFilter);
-      }
+      // If view is pending_my_review, status is implied. Remove explicit status from URL.
+      params.delete('status');
+      if(statusFilter !== 'pending_review') setStatusFilter('pending_review'); // Keep local state consistent
     }
 
-    // Apply search term filter to the already filtered list
-    if (searchTerm) {
-      tempDocs = tempDocs.filter(doc =>
-        doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.content.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    // Avoid pushing the same URL state if only local state changed but query params effectively didn't
+    if (params.toString() !== searchParams.toString().split('?')[1]) {
+         router.push(`/documents?${params.toString()}`, { scroll: false });
     }
-
-    // Sorting
-    tempDocs.sort((a, b) => {
-      if (sortBy === 'updatedAt_desc') {
-        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-      }
-      if (sortBy === 'updatedAt_asc') {
-        return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
-      }
-      if (sortBy === 'title_asc') {
-        return a.title.localeCompare(b.title);
-      }
-      return 0;
-    });
-
-    setDocuments(tempDocs);
-  }, [user, searchTerm, statusFilter, sortBy, viewFilter]);
+    // Fetch documents whenever these primary dependencies change
+    fetchDocuments();
+  }, [fetchDocuments, searchTerm, statusFilter, sortBy, viewFilter, currentPage, router]); // Removed searchParams from deps
 
 
+  if (authLoading) {
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /> <p className="ml-2">Authenticating...</p></div>;
+  }
   if (!user) {
     return <p className="text-center mt-8">Please log in to view documents.</p>;
   }
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+  
+  const handleStatusFilterChange = (value: string) => {
+    const newStatus = value as ReviewStatus | 'all';
+    setStatusFilter(newStatus);
+    setCurrentPage(1); // Reset to first page on filter change
+    if (viewFilter && newStatus !== 'pending_review' && viewFilter === 'pending_my_review') {
+      // If user changes status filter away from pending_review while view=pending_my_review, clear the view.
+      setViewFilter(null);
+    }
+  };
+
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-0">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {viewFilter === 'pending_my_review' ? 'Documents Pending Your Review' : 'Your Documents'}
+            {viewFilter === 'pending_my_review' ? 'Documents Pending Your Review' : 
+             statusFilter !== 'all' ? `${statusFilter.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} Documents` :
+             'Your Documents'}
           </h1>
           <p className="text-muted-foreground">Manage, review, and track all your documents.</p>
         </div>
@@ -119,7 +171,6 @@ export default function DocumentsPage() {
         )}
       </div>
 
-      {/* Filters section, conditionally disable status if view implies it */}
       <div className="mb-6 p-4 bg-card border rounded-lg shadow">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div className="relative">
@@ -129,25 +180,15 @@ export default function DocumentsPage() {
               placeholder="Search documents..."
               className="pl-10"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1);}}
             />
           </div>
           <div>
             <label htmlFor="statusFilter" className="block text-sm font-medium text-muted-foreground mb-1">Status</label>
             <Select 
               value={statusFilter} 
-              onValueChange={(value) => {
-                // When user manually changes status, clear the specific view if it implies a different status
-                if (viewFilter === 'pending_my_review' && value !== 'pending_review') {
-                  const newParams = new URLSearchParams(searchParams.toString());
-                  newParams.delete('view');
-                  newParams.set('status', value === 'all' ? '' : value);
-                  router.push(`/documents?${newParams.toString()}`);
-                } else {
-                  setStatusFilter(value as ReviewStatus | 'all');
-                }
-              }}
-              disabled={viewFilter === 'pending_my_review'} // Disable if view dictates status
+              onValueChange={handleStatusFilterChange}
+              disabled={viewFilter === 'pending_my_review'}
             >
               <SelectTrigger id="statusFilter">
                 <SelectValue placeholder="Filter by status" />
@@ -163,7 +204,7 @@ export default function DocumentsPage() {
           </div>
           <div>
             <label htmlFor="sortBy" className="block text-sm font-medium text-muted-foreground mb-1">Sort By</label>
-            <Select value={sortBy} onValueChange={setSortBy}>
+            <Select value={sortBy} onValueChange={(val) => {setSortBy(val); setCurrentPage(1);}}>
               <SelectTrigger id="sortBy">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -171,18 +212,39 @@ export default function DocumentsPage() {
                 <SelectItem value="updatedAt_desc">Last Updated (Newest)</SelectItem>
                 <SelectItem value="updatedAt_asc">Last Updated (Oldest)</SelectItem>
                 <SelectItem value="title_asc">Title (A-Z)</SelectItem>
+                <SelectItem value="title_desc">Title (Z-A)</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
       </div>
 
-      {documents.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {documents.map((doc) => (
-            <DocumentCard key={doc.id} document={doc} currentUserRole={user.role} />
+      {isLoading ? (
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(DOCUMENTS_PER_PAGE)].map((_, i) => (
+            <div key={i} className="bg-card p-4 rounded-lg shadow">
+                <div className="h-48 bg-muted rounded animate-pulse mb-4"></div>
+                <div className="h-6 w-3/4 bg-muted rounded animate-pulse mb-2"></div>
+                <div className="h-4 w-1/2 bg-muted rounded animate-pulse mb-4"></div>
+                <div className="h-8 w-full bg-muted rounded animate-pulse"></div>
+            </div>
           ))}
         </div>
+      ) : documents.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {documents.map((doc) => (
+              <DocumentCard key={doc.id} document={doc} currentUserRole={user.role} />
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <div className="mt-8 flex justify-center items-center gap-2">
+              <Button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage <= 1}>Previous</Button>
+              <span>Page {currentPage} of {totalPages}</span>
+              <Button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage >= totalPages}>Next</Button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center py-12">
           <Filter className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -202,44 +264,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
-// Need to import router for programmatic navigation if status/view conflict
-import { useRouter } from 'next/navigation';
-// (already imported) const router = useRouter(); should be at the top of the component.
-// Make sure it is imported if it's used inside handleSelectChange or similar.
-// The provided code snippet seems to not use `router.push` inside the select's onValueChange
-// but if we were to add logic to change URL query params based on select, we would.
-// For now, the current `setStatusFilter` will trigger re-fetch/re-filter.
-
-// Correction: `router.push` is needed if `onValueChange` for status filter
-// is to clear the `view` query param.
-// Let's make sure `useRouter` is imported and initialized.
-// It is already imported in the original file, so this comment is just for clarity.
-// The `router.push` logic in `onValueChange` of Status Select is not present in the original file so I will remove it for now to match existing patterns.
-// The `setStatusFilter` will trigger the `useEffect` which uses `searchParams`,
-// so to truly update the URL, we'd navigate.
-// The current approach modifies local state, which then re-filters.
-// For cleaner state management with URL, navigation is better.
-// Let's adjust the select to just set state, consistent with original.
-
-/*
-  To make status select clear the view filter by changing URL:
-  const router = useRouter(); // at the top of component
-
-  // Inside Select onValueChange for statusFilter:
-  onValueChange={(value) => {
-    const newParams = new URLSearchParams(searchParams.toString());
-    if (value === 'all') {
-      newParams.delete('status');
-    } else {
-      newParams.set('status', value);
-    }
-    // If changing status, assume specific "view" is no longer primary
-    if (viewFilter) {
-        newParams.delete('view');
-    }
-    router.push(`/documents?${newParams.toString()}`);
-  }}
-  This would make the URL the source of truth for filters.
-  For now, keeping it simpler by just updating component state.
-*/

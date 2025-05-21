@@ -1,88 +1,152 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AdminDocumentTable } from '@/components/admin/AdminDocumentTable';
-import type { Document, ReviewStatus, User } from '@/lib/types';
-import { mockDocuments, mockUsers } from '@/lib/mockData';
+import type { Document, ReviewStatus, User, PaginatedDocumentsResponse } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Filter, UploadCloud, Users, BarChart3 } from 'lucide-react';
+import { Search, Filter, UploadCloud, Users, BarChart3, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { apiClient } from '@/lib/apiClient';
+import { useToast } from '@/hooks/use-toast';
+
+const DOCUMENTS_PER_PAGE = 10;
 
 export default function AdminPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
 
-  const [documents, setDocuments] = useState<Document[]>(mockDocuments); // Start with all mock documents
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ReviewStatus | 'all'>('all');
-  const [sortBy, setSortBy] = useState('updatedAt_desc');
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalPages, setTotalPages] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('searchTerm') || '');
+  const [statusFilter, setStatusFilter] = useState<ReviewStatus | 'all'>(
+    (searchParams.get('status') as ReviewStatus | 'all') || 'all'
+  );
+  const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'updatedAt_desc');
+  
+  const [stats, setStats] = useState({
+    totalDocs: 0,
+    pending: 0,
+    approved: 0,
+    users: 0,
+  });
+
+  const buildApiParams = useCallback(() => {
+    const params = new URLSearchParams();
+    params.append('page', String(currentPage));
+    params.append('limit', String(DOCUMENTS_PER_PAGE));
+    if (searchTerm) params.append('searchTerm', searchTerm);
+    if (statusFilter !== 'all') params.append('status', statusFilter);
+    if (sortBy) params.append('sortBy', sortBy);
+    // Admin sees all, no author/reviewer specific filters needed by default here
+    return params;
+  }, [currentPage, searchTerm, statusFilter, sortBy]);
+
+  const fetchAdminData = useCallback(async () => {
+    if (!user || user.role !== 'admin' || authLoading) return;
+    setIsLoading(true);
+    try {
+      const params = buildApiParams();
+      // Fetch documents and users in parallel
+      const [docsResponse, usersResponse] = await Promise.all([
+        apiClient.getDocuments(params),
+        apiClient.getUsers() // Assuming this fetches all users for stats
+      ]);
+      
+      setDocuments(docsResponse.documents);
+      setTotalPages(docsResponse.totalPages);
+      setCurrentPage(docsResponse.currentPage); // Ensure current page from API is respected
+      setAllUsers(usersResponse);
+
+      // Calculate stats based on potentially all documents (not just current page)
+      // For accurate stats, we might need separate API endpoints or fetch all docs (not recommended for large datasets)
+      // For now, using usersResponse.length for user count. Document stats might be approximate.
+      // A better approach for stats would be dedicated API endpoints.
+      // Simulating stats based on current documents for now:
+      const allDocsForStats = await apiClient.getDocuments(new URLSearchParams({limit: '1000'})); // Fetch a larger set for stats; not ideal.
+      setStats({
+        totalDocs: allDocsForStats.documents.length, // Or a dedicated API endpoint for total count
+        pending: allDocsForStats.documents.filter(d => d.status === 'pending_review').length,
+        approved: allDocsForStats.documents.filter(d => d.status === 'approved').length,
+        users: usersResponse.length,
+      });
+
+    } catch (error: any) {
+      toast({
+        title: 'Error Fetching Admin Data',
+        description: error.message || 'Could not load administrator data.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, authLoading, buildApiParams, toast]);
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
+    if (!authLoading && (!user || user.role !== 'admin')) {
       console.log('[AdminPage] User not admin or not logged in, redirecting.');
-      router.push('/'); // Redirect non-admins
+      router.push('/');
       return;
     }
-    console.log('[AdminPage] Admin user accessing page:', user.id);
+    fetchAdminData();
+  }, [user, authLoading, router, fetchAdminData]);
 
-    // Client-side filtering for demo
-    let filteredDocs = mockDocuments;
-    if (statusFilter !== 'all') {
-      filteredDocs = filteredDocs.filter(doc => doc.status === statusFilter);
+  useEffect(() => {
+    // Update URL when filters change
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('searchTerm', searchTerm);
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    if (sortBy !== 'updatedAt_desc') params.set('sortBy', sortBy);
+    if (currentPage > 1) params.set('page', String(currentPage));
+    router.push(`/admin?${params.toString()}`, { scroll: false });
+  }, [searchTerm, statusFilter, sortBy, currentPage, router]);
+
+
+  const handleReassignReviewer = async (documentId: string, newReviewerIdStr: string) => {
+    const newReviewerId = parseInt(newReviewerIdStr, 10);
+    if (isNaN(newReviewerId)) {
+        toast({ title: "Invalid Reviewer ID", variant: "destructive"});
+        return;
     }
-    if (searchTerm) {
-      filteredDocs = filteredDocs.filter(doc =>
-        doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.authorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (doc.reviewerName && doc.reviewerName.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+    try {
+      await apiClient.reassignReviewer(documentId, newReviewerId);
+      toast({
+        title: "Reviewer Reassigned",
+        description: `Reviewer for document updated.`,
+      });
+      fetchAdminData(); // Refresh data
+    } catch (error: any) {
+      toast({
+        title: "Error Reassigning Reviewer",
+        description: error.message,
+        variant: "destructive",
+      });
     }
-    // Sorting (example)
-    filteredDocs.sort((a, b) => {
-      if (sortBy === 'updatedAt_desc') return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-      if (sortBy === 'title_asc') return a.title.localeCompare(b.title);
-      return 0;
-    });
-    setDocuments(filteredDocs);
-
-  }, [user, router, searchTerm, statusFilter, sortBy]);
-
-  const handleReassignReviewer = (documentId: string, newReviewerId: string) => {
-    // Simulate API call
-    setDocuments(prevDocs =>
-      prevDocs.map(doc => {
-        if (doc.id === documentId) {
-          const newReviewer = mockUsers.find(u => u.id === newReviewerId);
-          console.log(`[AdminPage] Reassigning reviewer for doc ${documentId} to ${newReviewer?.name}`);
-          return { ...doc, reviewerId: newReviewerId, reviewerName: newReviewer?.name || 'N/A' };
-        }
-        return doc;
-      })
-    );
-    // In a real app, update mockHistory or fetch new history
+  };
+  
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
   };
 
-  const handleViewHistory = (documentId: string) => {
-    // For now, this just logs. In a real app, it might open a modal or navigate.
-    console.log(`[AdminPage] Viewing history for document ${documentId}`);
-    // Navigation to document detail page with history tab active is handled by AdminDocumentTable
-  };
-
-
+  if (authLoading || (!user && !isLoading) /* initial load before redirect */) {
+    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin" /></div>;
+  }
   if (!user || user.role !== 'admin') {
+    // This might be briefly visible or not at all if redirection is fast
+    // Or if fetchCurrentUser in AuthContext already redirected.
     return <p className="text-center mt-8">Access Denied. You must be an administrator to view this page.</p>;
   }
   
-  const stats = {
-    totalDocs: mockDocuments.length,
-    pending: mockDocuments.filter(d => d.status === 'pending_review').length,
-    approved: mockDocuments.filter(d => d.status === 'approved').length,
-    users: mockUsers.length,
-  };
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-0">
@@ -98,7 +162,7 @@ export default function AdminPage() {
             <UploadCloud className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalDocs}</div>
+            <div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalDocs}</div>
           </CardContent>
         </Card>
         <Card>
@@ -107,7 +171,7 @@ export default function AdminPage() {
             <Filter className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pending}</div>
+            <div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.pending}</div>
           </CardContent>
         </Card>
          <Card>
@@ -116,7 +180,7 @@ export default function AdminPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.users}</div>
+            <div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.users}</div>
           </CardContent>
         </Card>
         <Card>
@@ -126,7 +190,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">Optimal</div>
-             <p className="text-xs text-muted-foreground">Placeholder for monitoring status</p>
+             <p className="text-xs text-muted-foreground">System health check via API needed</p>
           </CardContent>
         </Card>
       </div>
@@ -146,12 +210,12 @@ export default function AdminPage() {
                 placeholder="Search by title, author, reviewer..."
                 className="pl-10"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
                 />
             </div>
             <div>
                 <label htmlFor="adminStatusFilter" className="block text-sm font-medium text-muted-foreground mb-1">Status</label>
-                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ReviewStatus | 'all')}>
+                <Select value={statusFilter} onValueChange={(value) => {setStatusFilter(value as ReviewStatus | 'all'); setCurrentPage(1);}}>
                 <SelectTrigger id="adminStatusFilter">
                     <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
@@ -166,13 +230,15 @@ export default function AdminPage() {
             </div>
             <div>
                  <label htmlFor="adminSortBy" className="block text-sm font-medium text-muted-foreground mb-1">Sort By</label>
-                <Select value={sortBy} onValueChange={setSortBy}>
+                <Select value={sortBy} onValueChange={(val) => {setSortBy(val); setCurrentPage(1);}}>
                 <SelectTrigger id="adminSortBy">
                     <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="updatedAt_desc">Last Updated (Newest)</SelectItem>
+                    <SelectItem value="updatedAt_asc">Last Updated (Oldest)</SelectItem>
                     <SelectItem value="title_asc">Title (A-Z)</SelectItem>
+                    <SelectItem value="title_desc">Title (Z-A)</SelectItem>
                 </SelectContent>
                 </Select>
             </div>
@@ -181,13 +247,11 @@ export default function AdminPage() {
       </Card>
 
       <h2 className="text-2xl font-semibold mb-4 mt-8">All Documents</h2>
-      {documents.length > 0 ? (
-        <AdminDocumentTable
-          documents={documents}
-          onReassignReviewer={handleReassignReviewer}
-          onViewHistory={handleViewHistory}
-        />
-      ) : (
+      {isLoading && documents.length === 0 ? ( // Initial loading state for table
+        <div className="space-y-2">
+            {[...Array(5)].map((_, i) => <div key={i} className="h-16 bg-muted rounded animate-pulse"></div>)}
+        </div>
+      ) : !isLoading && documents.length === 0 ? (
          <div className="text-center py-12 border-2 border-dashed rounded-lg">
           <Filter className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Documents Match Filters</h3>
@@ -195,6 +259,22 @@ export default function AdminPage() {
             Try adjusting your search or filter criteria.
           </p>
         </div>
+      ) : (
+        <>
+        <AdminDocumentTable
+          documents={documents}
+          onReassignReviewer={handleReassignReviewer}
+          onViewHistory={(docId) => router.push(`/documents/${docId}?tab=history`)} // Simplified
+          isLoading={isLoading && documents.length > 0} // Pass loading for subsequent loads
+        />
+        {totalPages > 1 && (
+            <div className="mt-8 flex justify-center items-center gap-2">
+              <Button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage <= 1 || isLoading}>Previous</Button>
+              <span>Page {currentPage} of {totalPages}</span>
+              <Button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage >= totalPages || isLoading}>Next</Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

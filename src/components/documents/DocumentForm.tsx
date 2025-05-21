@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,16 +12,17 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
-import { UploadCloud, Save, Send, XCircle, Info, ImagePlus } from 'lucide-react';
-import { mockUsers } from '@/lib/mockData'; // For reviewer selection
+import { UploadCloud, Save, Send, XCircle, Info, ImagePlus, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { apiClient } from '@/lib/apiClient';
 
+// Schema for frontend validation, API will also validate
 const documentSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }).max(100),
-  content: z.string().min(10, { message: "Content must be at least 10 characters." }).optional().default(''), // Made optional and default to empty for safer handling initially
-  imageUrl: z.string().optional(),
-  reviewerId: z.string().optional(),
+  content: z.string().min(10, { message: "Content must be at least 10 characters." }).optional().default(''),
+  imageUrl: z.string().url({ message: "Please enter a valid URL for the cover image." }).optional().or(z.literal('')), // Allow empty string or valid URL
+  reviewerId: z.string().optional(), // Will be string from select, converted to number for API if needed
 });
 
 type DocumentFormData = z.infer<typeof documentSchema>;
@@ -28,12 +30,18 @@ type DocumentFormData = z.infer<typeof documentSchema>;
 interface DocumentFormProps {
   document?: Document; // For editing
   currentUser: User;
-  onSubmit: (data: DocumentFormData, action: 'save' | 'submit') => void; // Action type
+  onSubmit: (data: DocumentFormData, action: 'save_draft' | 'submit_for_review' | 'resubmit_for_review') => void;
   onCancel?: () => void;
+  formMode: 'create' | 'edit';
 }
 
-export function DocumentForm({ document, currentUser, onSubmit, onCancel }: DocumentFormProps) {
+export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMode }: DocumentFormProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(document?.imageUrl || null);
+  const [reviewers, setReviewers] = useState<User[]>([]);
+  const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
+
   const { toast } = useToast();
   const contentTextAreaRef = useRef<HTMLTextAreaElement>(null);
   const contentImageUploadRef = useRef<HTMLInputElement>(null);
@@ -45,7 +53,7 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
       title: document?.title || '',
       content: document?.content || '',
       imageUrl: document?.imageUrl || '',
-      reviewerId: document?.reviewerId || '',
+      reviewerId: document?.reviewerId || '', // Keep as string, convert for API
     },
   });
 
@@ -54,23 +62,52 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
       reset({
         title: document.title,
         content: document.content,
-        imageUrl: document.imageUrl,
-        reviewerId: document.reviewerId,
+        imageUrl: document.imageUrl || '',
+        reviewerId: document.reviewerId || '',
       });
       setImagePreview(document.imageUrl || null);
     }
   }, [document, reset]);
 
-  const handleCoverImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    const fetchReviewers = async () => {
+      setIsLoadingReviewers(true);
+      try {
+        const fetchedReviewers = await apiClient.getReviewers();
+        setReviewers(fetchedReviewers.filter(r => r.id !== currentUser.id)); // Exclude current user
+      } catch (error: any) {
+        toast({ title: "Error fetching reviewers", description: error.message, variant: "destructive" });
+      } finally {
+        setIsLoadingReviewers(false);
+      }
+    };
+    fetchReviewers();
+  }, [currentUser.id, toast]);
+
+  const handleFileUpload = async (file: File, UploaderComponentStateSetter: React.Dispatch<React.SetStateAction<boolean>> ) : Promise<string | null> => {
+    UploaderComponentStateSetter(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const response = await apiClient.uploadImage(formData);
+      toast({ title: "Image Uploaded", description: `${file.name} uploaded successfully.` });
+      return response.imageUrl;
+    } catch (error: any) {
+      toast({ title: "Image Upload Failed", description: error.message, variant: "destructive" });
+      return null;
+    } finally {
+        UploaderComponentStateSetter(false);
+    }
+  };
+
+  const handleCoverImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-        setValue('imageUrl', reader.result as string); 
-        console.log('[DocumentForm] Cover image selected (mock):', file.name);
-      };
-      reader.readAsDataURL(file);
+      const uploadedImageUrl = await handleFileUpload(file, setIsUploadingCover);
+      if (uploadedImageUrl) {
+        setImagePreview(uploadedImageUrl);
+        setValue('imageUrl', uploadedImageUrl, { shouldValidate: true });
+      }
     }
   };
 
@@ -78,8 +115,8 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
     const textarea = contentTextAreaRef.current;
     if (!textarea) return;
 
-    const markdownToInsert = `![${altText}](${dataUri})\n`;
-    const currentContent = getValues('content') || ''; // Ensure currentContent is a string
+    const markdownToInsert = `![${altText || 'image'}](${dataUri})\n`;
+    const currentContent = getValues('content') || '';
     const { selectionStart, selectionEnd } = textarea;
 
     const newContent = 
@@ -89,32 +126,23 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
     
     setValue('content', newContent, { shouldValidate: true });
 
-    // Try to set cursor position after inserted markdown
-    // This needs to be done after React re-renders the textarea with the new value
     setTimeout(() => {
       textarea.focus();
       textarea.selectionStart = textarea.selectionEnd = selectionStart + markdownToInsert.length;
     }, 0);
 
-    toast({
-        title: "Image Inserted",
-        description: `${altText} added to content.`,
-    });
+    toast({ title: "Image Inserted", description: `${altText} added to content.` });
   };
 
-  const processContentImageFile = (file: File) => {
+  const processContentImageFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
         toast({ title: "Invalid File", description: "Please select an image file.", variant: "destructive" });
         return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-        insertImageMarkdown(reader.result as string, file.name || "Uploaded Image");
-    };
-    reader.onerror = () => {
-        toast({ title: "Error Reading File", description: "Could not read the image file.", variant: "destructive"});
+    const uploadedImageUrl = await handleFileUpload(file, setIsUploadingContentImage);
+    if (uploadedImageUrl) {
+      insertImageMarkdown(uploadedImageUrl, file.name || "Uploaded Image");
     }
-    reader.readAsDataURL(file);
   };
 
   const handleContentImageSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,39 +150,22 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
     if (file) {
       processContentImageFile(file);
     }
-    // Reset file input to allow selecting the same file again
-    if (event.target) {
-        event.target.value = ""; 
-    }
+    if (event.target) event.target.value = ""; 
   };
 
   const handleContentDrop = (event: React.DragEvent<HTMLTextAreaElement>) => {
     event.preventDefault();
     const files = event.dataTransfer.files;
-    if (files && files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (file.type.startsWith('image/')) {
-          processContentImageFile(file);
-          break; // Process one image at a time from drop for simplicity
-        }
-      }
+    if (files && files.length > 0 && files[0].type.startsWith('image/')) {
+      processContentImageFile(files[0]);
     }
   };
-
-  const handleContentDragOver = (event: React.DragEvent<HTMLTextAreaElement>) => {
-    event.preventDefault(); // Necessary to allow dropping
-  };
-
-  const triggerContentImageUpload = () => {
-    contentImageUploadRef.current?.click();
-  };
+  const handleContentDragOver = (event: React.DragEvent<HTMLTextAreaElement>) => event.preventDefault();
+  const triggerContentImageUpload = () => contentImageUploadRef.current?.click();
 
 
-  const reviewers = mockUsers.filter(u => u.role === 'reviewer' || u.role === 'admin');
-
-  const processSubmit = (action: 'save' | 'submit') => (data: DocumentFormData) => {
-    if (action === 'submit' && !data.reviewerId) {
+  const onFormSubmit = (data: DocumentFormData, action: 'save_draft' | 'submit_for_review' | 'resubmit_for_review') => {
+    if ((action === 'submit_for_review' || action === 'resubmit_for_review') && !data.reviewerId) {
         toast({
             title: "Reviewer Required",
             description: "Please select a reviewer before submitting.",
@@ -162,24 +173,27 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
         });
         return;
     }
-    // Ensure content is at least an empty string if it's undefined, before submitting
     const submissionData = {
         ...data,
         content: data.content || '', 
+        imageUrl: data.imageUrl || undefined, // Ensure empty string becomes undefined for API
     };
-    console.log(`[DocumentForm] Form submitted with action: ${action}`, submissionData);
     onSubmit(submissionData, action);
   };
+
+  const saveAction: 'save_draft' = 'save_draft';
+  const submitAction: 'submit_for_review' | 'resubmit_for_review' = formMode === 'create' ? 'submit_for_review' : 'resubmit_for_review';
+
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
       <CardHeader>
-        <CardTitle>{document ? 'Edit Document' : 'Create New Document'}</CardTitle>
+        <CardTitle>{formMode === 'edit' ? 'Edit Document' : 'Create New Document'}</CardTitle>
         <CardDescription>
-          {document ? 'Update the details of your document.' : 'Fill in the details to create a new document.'}
+          {formMode === 'edit' ? 'Update the details of your document.' : 'Fill in the details to create a new document.'}
         </CardDescription>
       </CardHeader>
-      <form>
+      <form> {/* Removed onSubmit from form tag, will use button onClick + handleSubmit */}
         <CardContent className="space-y-6">
           <div>
             <Label htmlFor="title">Title</Label>
@@ -190,14 +204,15 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
           <div>
             <div className="flex justify-between items-center mb-1">
               <Label htmlFor="content">Content</Label>
-              <Button type="button" variant="outline" size="sm" onClick={triggerContentImageUpload}>
-                <ImagePlus className="mr-2 h-4 w-4" /> Insert Image
+              <Button type="button" variant="outline" size="sm" onClick={triggerContentImageUpload} disabled={isUploadingContentImage}>
+                {isUploadingContentImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
+                Insert Image
               </Button>
             </div>
             <Textarea
               id="content"
               {...register('content')}
-              ref={contentTextAreaRef} // Assign ref here
+              ref={contentTextAreaRef}
               placeholder="Write your document content here (supports Markdown and image drop)..."
               className="mt-1 min-h-[200px]"
               onDrop={handleContentDrop}
@@ -206,33 +221,29 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
             {errors.content && <p className="text-sm text-destructive mt-1">{errors.content.message}</p>}
             <p className="mt-1 text-xs text-muted-foreground flex items-center">
               <Info className="h-3 w-3 mr-1" />
-              Use Markdown for formatting (e.g., `## H`, `*i*`, `**b**`). Drag & drop or use button to insert images.
+              Use Markdown for formatting. Drag & drop or use button to upload and insert images.
             </p>
              <input
-              type="file"
-              accept="image/*"
-              ref={contentImageUploadRef}
-              style={{ display: 'none' }}
-              onChange={handleContentImageSelected}
+              type="file" accept="image/*" ref={contentImageUploadRef}
+              style={{ display: 'none' }} onChange={handleContentImageSelected}
             />
           </div>
 
           <div>
-            <Label htmlFor="imageUpload">Cover Image (Optional)</Label>
+            <Label htmlFor="coverImageUpload">Cover Image (Optional)</Label>
             <div className="mt-1 flex items-center gap-4">
-              <Input id="imageUpload" type="file" accept="image/*" onChange={handleCoverImageChange} className="hidden" />
-              <Button type="button" variant="outline" onClick={() => document.getElementById('imageUpload')?.click()}>
-                <UploadCloud className="mr-2 h-4 w-4" /> Upload Cover Image
+              <input id="coverImageUpload" type="file" accept="image/*" onChange={handleCoverImageChange} className="hidden" />
+              <Button type="button" variant="outline" onClick={() => document.getElementById('coverImageUpload')?.click()} disabled={isUploadingCover}>
+                {isUploadingCover ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                Upload Cover
               </Button>
               {imagePreview && (
                 <div className="relative w-32 h-20 rounded border overflow-hidden">
                   <Image src={imagePreview} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="image preview" />
                    <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
+                    type="button" variant="destructive" size="icon"
                     className="absolute top-1 right-1 h-6 w-6 opacity-70 hover:opacity-100"
-                    onClick={() => { setImagePreview(null); setValue('imageUrl', undefined); }}
+                    onClick={() => { setImagePreview(null); setValue('imageUrl', ''); }} // Set to empty string
                   >
                     <XCircle className="h-4 w-4" />
                   </Button>
@@ -242,26 +253,29 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
             {errors.imageUrl && <p className="text-sm text-destructive mt-1">{errors.imageUrl.message}</p>}
           </div>
           
-          {(document?.status === 'draft' || !document) && (
+          {/* Show reviewer selection if creating, or if editing and status allows submission/resubmission */}
+          {(formMode === 'create' || (document && (document.status === 'draft' || document.status === 'rejected'))) && (
             <div>
                 <Label htmlFor="reviewerId">Select Reviewer (for submission)</Label>
                 <Controller
-                name="reviewerId"
-                control={control}
-                render={({ field }) => (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <SelectTrigger id="reviewerId" className="mt-1">
-                        <SelectValue placeholder="Choose a reviewer" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  name="reviewerId"
+                  control={control}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value || ""} disabled={isLoadingReviewers}>
+                      <SelectTrigger id="reviewerId" className="mt-1">
+                        <SelectValue placeholder={isLoadingReviewers ? "Loading reviewers..." : "Choose a reviewer"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {isLoadingReviewers && <SelectItem value="loading" disabled>Loading...</SelectItem>}
+                        {!isLoadingReviewers && reviewers.length === 0 && <SelectItem value="no_reviewers" disabled>No reviewers available</SelectItem>}
                         {reviewers.map(rev => (
-                        <SelectItem key={rev.id} value={rev.id} disabled={rev.id === currentUser.id}>
-                            {rev.name} ({rev.email}) {rev.id === currentUser.id && "(Cannot select self)"}
-                        </SelectItem>
+                          <SelectItem key={rev.id} value={rev.id}>
+                            {rev.name} ({rev.email})
+                          </SelectItem>
                         ))}
-                    </SelectContent>
+                      </SelectContent>
                     </Select>
-                )}
+                  )}
                 />
                  {errors.reviewerId && <p className="text-sm text-destructive mt-1">{errors.reviewerId.message}</p>}
             </div>
@@ -270,24 +284,23 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
         </CardContent>
         <CardFooter className="flex justify-end gap-3 border-t pt-6">
           {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
           )}
-          {(document?.status === 'draft' || !document || document?.status === 'rejected') && (
-            <>
-            <Button type="button" variant="secondary" onClick={handleSubmit(processSubmit('save'))}>
+          {/* Allow save draft if creating, or if editing and current status is draft or rejected */}
+          {(formMode === 'create' || (document && (document.status === 'draft' || document.status === 'rejected'))) && (
+            <Button type="button" variant="secondary" onClick={handleSubmit(data => onFormSubmit(data, saveAction))}>
                 <Save className="mr-2 h-4 w-4" /> Save Draft
             </Button>
-            <Button type="button" onClick={handleSubmit(processSubmit('submit'))}>
-                <Send className="mr-2 h-4 w-4" /> Submit for Review
+          )}
+           {/* Allow submit if creating, or if editing and current status is draft or rejected */}
+          {(formMode === 'create' || (document && (document.status === 'draft' || document.status === 'rejected'))) && (
+            <Button type="button" onClick={handleSubmit(data => onFormSubmit(data, submitAction))}>
+                <Send className="mr-2 h-4 w-4" /> 
+                {formMode === 'create' ? 'Submit for Review' : 'Resubmit for Review'}
             </Button>
-            </>
           )}
         </CardFooter>
       </form>
     </Card>
   );
 }
-
-    

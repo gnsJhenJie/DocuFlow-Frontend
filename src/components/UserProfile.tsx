@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,11 +12,25 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
-import { LogOut, User as UserIcon, Settings, Shield } from 'lucide-react';
+import { LogOut, User as UserIcon, Settings, Shield, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect } from 'react';
 
 export function UserProfile() {
-  const { user, logout } = useAuth();
+  const { user, logout, loading, fetchCurrentUser } = useAuth();
+
+  useEffect(() => {
+    // If no user but not loading (meaning initial token check done), try fetching user.
+    // This handles cases where token exists but user object wasn't immediately available.
+    if (!user && !loading && localStorage.getItem('docuflow_jwt_token')) {
+      fetchCurrentUser();
+    }
+  }, [user, loading, fetchCurrentUser]);
+
+
+  if (loading) {
+    return <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full"><Loader2 className="h-5 w-5 animate-spin" /></Button>;
+  }
 
   if (!user) {
     return (
@@ -26,6 +41,7 @@ export function UserProfile() {
   }
 
   const getInitials = (name: string) => {
+    if (!name) return '??';
     const names = name.split(' ');
     if (names.length > 1) {
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
@@ -38,7 +54,8 @@ export function UserProfile() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="user avatar" />
+            {/* Use a placeholder if avatarUrl is not present */}
+            <AvatarImage src={user.avatarUrl || `https://placehold.co/100x100/E0E0E0/000000?text=${getInitials(user.name)}`} alt={user.name} data-ai-hint="user avatar" />
             <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
           </Avatar>
         </Button>
@@ -48,17 +65,18 @@ export function UserProfile() {
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{user.name}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {user.email} ({user.role})
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/profile" className="flex items-center"> {/* Assuming a profile page might exist */}
+        {/* Profile link can be re-enabled when /profile page exists */}
+        {/* <DropdownMenuItem asChild>
+          <Link href="/profile" className="flex items-center"> 
             <UserIcon className="mr-2 h-4 w-4" />
             Profile
           </Link>
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
         {user.role === 'admin' && (
            <DropdownMenuItem asChild>
              <Link href="/admin" className="flex items-center">
@@ -67,9 +85,11 @@ export function UserProfile() {
              </Link>
            </DropdownMenuItem>
         )}
-        <DropdownMenuItem>
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
+        <DropdownMenuItem asChild>
+           <Link href="/settings" className="flex items-center">
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={logout}>

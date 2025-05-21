@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -5,45 +6,75 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// Select for role simulation is removed as role comes from backend or OAuth profile
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import type { Role } from '@/lib/types';
+import type { Role } from '@/lib/types'; // Role might still be useful for display or client-side logic if needed
 import { AppLogo } from '@/components/AppLogo';
-import { Github, MessageSquare /* Using MessageSquare as a generic OAuth icon */ } from 'lucide-react';
+import { Github } from 'lucide-react'; // MessageSquare removed as it was generic
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('alice@example.com'); // Default to an admin user
-  const [selectedRole, setSelectedRole] = useState<Role>('admin');
+  const [email, setEmail] = useState('alice@example.com'); // Default for convenience
+  const [password, setPassword] = useState('password'); // Default for convenience
   const { login, loading } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      alert('Please enter an email.'); // Basic validation
+    if (!email || !password) {
+      toast({ title: 'Login Error', description: 'Please enter email and password.', variant: 'destructive' });
       return;
     }
-    console.log(`[LoginPage] Attempting login for email: ${email} with role: ${selectedRole}`);
-    login(email, selectedRole); // Pass selected role
-    // AuthProvider will redirect on successful login via its useEffect
-    router.push('/'); 
+    try {
+      await login(email, password);
+      // AuthProvider will redirect on successful login via its useEffect or direct call
+    } catch (error: any) {
+      toast({
+        title: 'Login Failed',
+        description: error.message || 'Invalid credentials or server error.',
+        variant: 'destructive',
+      });
+    }
   };
   
-  const handleOAuthLogin = (provider: string) => {
-    // In a real app, this would initiate the Firebase OAuth flow.
-    // For this mock, we'll just log in a predefined user.
-    console.log(`[LoginPage] OAuth login attempt with ${provider}`);
-    let oauthEmail = 'bob@example.com';
+  const handleOAuthLogin = async (provider: string) => {
+    // Real OAuth would redirect to the provider, then callback to backend, then frontend.
+    // This is a MOCK for the frontend part of "logging in via OAuth"
+    // The backend needs to handle the actual OAuth flow and token exchange.
+    // Here, we're simulating that the OAuth flow completed and we got some user info.
+    // Then we call our `login` function with an `isOAuth` flag.
+    // The `login` function in AuthContext would then ideally call a specific backend endpoint
+    // like `/api/auth/oauth/google` or `/api/auth/oauth/github` which would handle
+    // creating/logging in the user and returning a JWT.
+    // For this iteration, we'll just use the existing login with placeholder password.
+    console.log(`[LoginPage] Simulating OAuth login attempt with ${provider}`);
+    let oauthEmail = 'bob-editor@example.com'; // Example
+    let oauthName = 'Bob OAuth Editor';
     let oauthRole: Role = 'editor';
+
     if (provider === 'Google') {
-        oauthEmail = 'charlie@example.com';
+        oauthEmail = 'charlie-reviewer@example.com'; // Example
+        oauthName = 'Charlie OAuth Reviewer';
         oauthRole = 'reviewer';
     }
-    login(oauthEmail, oauthRole);
-    router.push('/');
+    
+    try {
+      // The `login` function in AuthContext needs to be adapted to handle this.
+      // It might call a specific OAuth login endpoint on your backend,
+      // or your backend's general /login might be able to create user on the fly if they don't exist.
+      // For now, we pass `isOAuth: true` and `oAuthUser` details.
+      await login(oauthEmail, "OAUTH_SIMULATED_PASSWORD", oauthRole, true, { name: oauthName, email: oauthEmail, role: oauthRole });
+      // AuthProvider will redirect on successful login
+    } catch (error: any) {
+      toast({
+        title: `${provider} Login Failed`,
+        description: error.message || `Could not log in with ${provider}.`,
+        variant: 'destructive',
+      });
+    }
   };
-
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -54,7 +85,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl">Welcome to DocuFlow</CardTitle>
           <CardDescription>
-            Sign in to manage your documents or select a role to simulate.
+            Sign in to manage your documents.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -80,7 +111,7 @@ export default function LoginPage() {
           </div>
           <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="email">Email (for simulation)</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -90,27 +121,24 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="role">Simulate Role</Label>
-              <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as Role)}>
-                <SelectTrigger id="role">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="editor">Editor</SelectItem>
-                  <SelectItem value="reviewer">Reviewer</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
-                </SelectContent>
-              </Select>
+             <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
             </div>
+            {/* Role selection is removed as it should come from backend */}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login / Simulate'}
+              {loading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="text-center text-sm text-muted-foreground">
-            This is a simulated login. No actual authentication is performed.
+         <CardFooter className="text-center text-sm text-muted-foreground">
+            OAuth login is simulated.
         </CardFooter>
       </Card>
     </div>

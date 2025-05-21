@@ -1,5 +1,6 @@
+
 export interface User {
-  id: string;
+  id: string; // Assuming backend provides string IDs for users consistent with this
   email: string;
   name: string;
   avatarUrl?: string;
@@ -11,28 +12,40 @@ export type Role = 'viewer' | 'editor' | 'reviewer' | 'admin';
 export type ReviewStatus = 'draft' | 'pending_review' | 'approved' | 'rejected';
 
 export interface Document {
-  id: string;
+  id: string; // Assuming backend provides string IDs for documents
   title: string;
-  content: string; // Could be structured JSON for a rich editor
+  content: string;
   imageUrl?: string;
-  authorId: string;
+  authorId: string; // User ID
   authorName: string;
-  reviewerId?: string;
+  reviewerId?: string; // User ID - will be string in frontend state
   reviewerName?: string;
   status: ReviewStatus;
-  createdAt: string; // ISO date string
-  updatedAt: string; // ISO date string
-  submittedAt?: string; // ISO date string
-  reviewedAt?: string; // ISO date string
+  createdAt: string;
+  updatedAt: string;
+  submittedAt?: string;
+  reviewedAt?: string;
   rejectionReason?: string;
   version: number;
 }
 
 export interface DocumentHistoryEntry {
   id: string;
-  timestamp: string; // ISO date string
-  action: string; // e.g., "created", "submitted", "approved", "rejected", "edited", "reviewer_assigned"
+  timestamp: string;
+  action: string;
   userId: string;
   userName: string;
-  details?: Record<string, any>; // e.g., { reason: "Typo in section 2" }, { newReviewerId: "user123" }
+  details?: Record<string, any>;
+}
+
+export interface PaginatedDocumentsResponse {
+  documents: Document[];
+  totalPages: number;
+  currentPage: number;
+}
+
+// For login response
+export interface AuthResponse {
+  token: string;
+  user: User;
 }

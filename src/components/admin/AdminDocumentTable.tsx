@@ -4,62 +4,76 @@
 import { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import type { Document, User, ReviewStatus } from '@/lib/types';
-import { mockDocuments, mockUsers } from '@/lib/mockData'; // Assuming mockUsers for reviewer reassignment
-import { MoreHorizontal, Edit, Trash2, Send, Eye, Clock, CheckCircle2, XCircle, UserCheck2, History } from 'lucide-react';
+import type { Document, User } from '@/lib/types';
+import { MoreHorizontal, Eye, UserCheck2, History, Trash2, Loader2 } from 'lucide-react';
 import { DocumentStatusBadge } from '@/components/documents/DocumentStatusBadge';
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import { Skeleton } from '@/components/ui/skeleton'; // Added Skeleton import
+import { Skeleton } from '@/components/ui/skeleton';
+import { apiClient } from '@/lib/apiClient'; // Import apiClient
+import { useRouter } from 'next/navigation'; // Import useRouter
 
 interface AdminDocumentTableProps {
   documents: Document[];
-  onReassignReviewer: (documentId: string, newReviewerId: string) => void;
-  onViewHistory: (documentId: string) => void; // Placeholder for history view
-  // Add other actions as needed, e.g., onDelete, onArchive
+  onReassignReviewer: (documentId: string, newReviewerId: string) => Promise<void>;
+  onViewHistory: (documentId: string) => void;
+  isLoading?: boolean;
 }
 
-export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistory }: AdminDocumentTableProps) {
+export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistory, isLoading }: AdminDocumentTableProps) {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [newReviewerId, setNewReviewerId] = useState<string>('');
+  const [potentialReviewers, setPotentialReviewers] = useState<User[]>([]);
+  const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
+
   const { toast } = useToast();
-  const [isClient, setIsClient] = useState(false); // Added for client-side rendering
+  const [isClient, setIsClient] = useState(false);
+  const router = useRouter();
+
 
   useEffect(() => {
-    setIsClient(true); // Set to true after component mounts
+    setIsClient(true);
   }, []);
 
-  const reviewers = mockUsers.filter(u => u.role === 'reviewer' || u.role === 'admin');
+  const fetchReviewersForModal = async () => {
+    if (!showReassignModal) return; // Only fetch if modal is to be shown
+    setIsLoadingReviewers(true);
+    try {
+      const fetchedReviewers = await apiClient.getReviewers();
+      // Filter out the document's current author from the list of potential new reviewers
+      setPotentialReviewers(fetchedReviewers.filter(rev => rev.id !== selectedDocument?.authorId));
+    } catch (error: any) {
+      toast({ title: "Error fetching reviewers", description: error.message, variant: "destructive" });
+    } finally {
+      setIsLoadingReviewers(false);
+    }
+  };
+  
+  // Fetch reviewers when the reassign modal is about to open
+  useEffect(() => {
+    if (showReassignModal && selectedDocument) {
+      fetchReviewersForModal();
+    }
+  }, [showReassignModal, selectedDocument]);
+
 
   const handleOpenReassignModal = (doc: Document) => {
     setSelectedDocument(doc);
-    setNewReviewerId(doc.reviewerId || '');
+    setNewReviewerId(doc.reviewerId || ''); // Pre-select current reviewer if any
     setShowReassignModal(true);
   };
 
-  const handleConfirmReassign = () => {
+  const handleConfirmReassign = async () => {
     if (selectedDocument && newReviewerId) {
-      onReassignReviewer(selectedDocument.id, newReviewerId);
-      console.log(`[AdminDocTable] Reassigning reviewer for doc ${selectedDocument.id} to ${newReviewerId}`);
-      toast({
-        title: "Reviewer Reassigned",
-        description: `Reviewer for "${selectedDocument.title}" changed.`,
-      });
+      await onReassignReviewer(selectedDocument.id, newReviewerId); // newReviewerId is string here
       setShowReassignModal(false);
       setSelectedDocument(null);
     } else {
@@ -70,6 +84,43 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
       });
     }
   };
+  
+  const handleDeleteDocument = async (docId: string, docTitle: string) => {
+      if(window.confirm(`Are you sure you want to delete document: "${docTitle}"? This action cannot be undone.`)) {
+          try {
+              await apiClient.deleteDocument(docId);
+              toast({ title: "Document Deleted", description: `"${docTitle}" has been deleted.`});
+              // TODO: Need a way to refresh the document list in the parent component (AdminPage)
+              // This could be done by passing a refresh function as a prop.
+              // For now, user has to manually refresh or filter again.
+              router.refresh(); // Next.js 13+ way to refresh server components / data
+          } catch (error: any) {
+              toast({ title: "Error Deleting Document", description: error.message, variant: "destructive"});
+          }
+      }
+  };
+
+  if (isLoading && documents.length === 0) { // Initial loading skeleton
+    return (
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {[...Array(7)].map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-24" /></TableHead>)}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[...Array(5)].map((_, i) => (
+              <TableRow key={i}>
+                {[...Array(7)].map((_, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  }
+
 
   return (
     <>
@@ -88,7 +139,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
           </TableHeader>
           <TableBody>
             {documents.map((doc) => (
-              <TableRow key={doc.id}>
+              <TableRow key={doc.id} className={isLoading ? "opacity-50" : ""}>
                 <TableCell className="font-medium">
                   <Link href={`/documents/${doc.id}`} className="hover:text-primary hover:underline">
                     {doc.title}
@@ -108,7 +159,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
+                      <Button variant="ghost" className="h-8 w-8 p-0" disabled={isLoading}>
                         <span className="sr-only">Open menu</span>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
@@ -125,11 +176,15 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
                           <UserCheck2 className="mr-2 h-4 w-4" /> Reassign Reviewer
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onClick={() => { onViewHistory(doc.id); router.push(`/documents/${doc.id}?tab=history`); }}>
+                      <DropdownMenuItem onClick={() => onViewHistory(doc.id)}>
                         <History className="mr-2 h-4 w-4" /> View History
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                       <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                       <DropdownMenuItem 
+                         onClick={() => handleDeleteDocument(doc.id, doc.title)}
+                         className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                         disabled={doc.status !== 'draft'} // Per API spec: Admin can delete any draft. Authors also.
+                       >
                         <Trash2 className="mr-2 h-4 w-4" /> Delete Document
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -155,14 +210,16 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
                 New Reviewer
               </Label>
               <div className="col-span-3">
-                <Select value={newReviewerId} onValueChange={setNewReviewerId}>
+                <Select value={newReviewerId} onValueChange={setNewReviewerId} disabled={isLoadingReviewers}>
                     <SelectTrigger id="newReviewer">
-                    <SelectValue placeholder="Select a reviewer" />
+                    <SelectValue placeholder={isLoadingReviewers ? "Loading..." : "Select a reviewer"} />
                     </SelectTrigger>
                     <SelectContent>
-                    {reviewers.map(rev => (
-                        <SelectItem key={rev.id} value={rev.id} disabled={rev.id === selectedDocument?.authorId}>
-                        {rev.name} ({rev.email}) {rev.id === selectedDocument?.authorId && "(Author)"}
+                    {isLoadingReviewers && <SelectItem value="loading" disabled>Loading reviewers...</SelectItem>}
+                    {!isLoadingReviewers && potentialReviewers.length === 0 && <SelectItem value="no_reviewers" disabled>No eligible reviewers</SelectItem>}
+                    {potentialReviewers.map(rev => (
+                        <SelectItem key={rev.id} value={rev.id}>
+                           {rev.name} ({rev.email})
                         </SelectItem>
                     ))}
                     </SelectContent>
@@ -174,7 +231,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
             <DialogClose asChild>
                 <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
-            <Button type="button" onClick={handleConfirmReassign}>Confirm Reassignment</Button>
+            <Button type="button" onClick={handleConfirmReassign} disabled={isLoadingReviewers || !newReviewerId}>Confirm</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -182,13 +239,9 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
   );
 }
 
-// Dummy Card component if not using shadcn (but we are)
-const Card: React.FC<{ className?: string, children: React.ReactNode }> = ({ className, children }) => (
-  <div className={`bg-card rounded-lg border shadow-sm ${className}`}>
-    {children}
-  </div>
-);
-
-// Dummy router for Link if next/navigation is not available in this context
-// (it will be, this is just for isolated thought process)
-const router = { push: (path: string) => console.log(`Navigating to ${path}`) };
+// Dummy Card component (already exists in project, removed definition here)
+// const Card: React.FC<{ className?: string, children: React.ReactNode }> = ({ className, children }) => (
+//   <div className={`bg-card rounded-lg border shadow-sm ${className}`}>
+//     {children}
+//   </div>
+// );

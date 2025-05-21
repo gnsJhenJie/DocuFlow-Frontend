@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -9,182 +9,182 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { DocumentForm } from '@/components/documents/DocumentForm';
 import { ReviewActions } from '@/components/documents/ReviewActions';
-import type { Document, DocumentHistoryEntry } from '@/lib/types';
-import { mockDocuments, mockUsers } from '@/lib/mockData';
+import type { Document, DocumentHistoryEntry, User } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Edit3, Eye, Clock, CheckCircle2, XCircle, MessageSquare, ShieldCheck, Send, FileText, History, AlertTriangleIcon, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Edit3, Eye, Clock, CheckCircle2, XCircle, MessageSquare, ShieldCheck, Send, FileText, History, AlertTriangle, Loader2 } from 'lucide-react';
 import { DocumentStatusBadge } from '@/components/documents/DocumentStatusBadge';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
-
-// Define a fixed reference point for mock dates to ensure consistency
-const MOCK_HISTORY_REFERENCE_NOW = new Date('2024-07-20T12:00:00Z').getTime();
-
-// Mock history data
-const mockHistory: Record<string, DocumentHistoryEntry[]> = {
-    'doc1': [
-        { id: 'hist1-1', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 3 * 24 * 60 * 60 * 1000).toISOString(), action: 'created', userId: 'user2', userName: 'Bob The Builder' },
-        { id: 'hist1-2', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 2 * 24 * 60 * 60 * 1000).toISOString(), action: 'submitted', userId: 'user2', userName: 'Bob The Builder', details: { reviewer: 'Charlie Brown' } },
-    ],
-    'doc3': [
-        { id: 'hist3-1', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 10 * 24 * 60 * 60 * 1000).toISOString(), action: 'created', userId: 'user2', userName: 'Bob The Builder' },
-        { id: 'hist3-2', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 8 * 24 * 60 * 60 * 1000).toISOString(), action: 'submitted', userId: 'user2', userName: 'Bob The Builder', details: { reviewer: 'Alice Wonderland' } },
-        { id: 'hist3-3', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 7 * 24 * 60 * 60 * 1000).toISOString(), action: 'approved', userId: 'user1', userName: 'Alice Wonderland' },
-    ],
-     'doc4': [
-        { id: 'hist4-1', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 15 * 24 * 60 * 60 * 1000).toISOString(), action: 'created', userId: 'user1', userName: 'Alice Wonderland' },
-        { id: 'hist4-2', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 7 * 24 * 60 * 60 * 1000).toISOString(), action: 'submitted', userId: 'user1', userName: 'Alice Wonderland', details: { reviewer: 'Charlie Brown' } },
-        { id: 'hist4-3', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 6 * 24 * 60 * 60 * 1000).toISOString(), action: 'rejected', userId: 'user3', userName: 'Charlie Brown', details: { reason: 'Missing appendix B and figures in section 3 are not up to date.' } },
-    ]
-};
-
+import { apiClient } from '@/lib/apiClient';
 
 export default function DocumentDetailPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
   const [document, setDocument] = useState<Document | null>(null);
   const [documentHistory, setDocumentHistory] = useState<DocumentHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(searchParams.get('edit') === 'true');
-  const [isReviewing, setIsReviewing] = useState(searchParams.get('review') === 'true');
+  
+  const docId = params.id as string;
+  const initialEditMode = searchParams.get('edit') === 'true';
+  const initialReviewMode = searchParams.get('review') === 'true';
+  const initialTab = searchParams.get('tab') || 'details';
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [activeTab, setActiveTab] = useState(initialTab);
 
 
-  useEffect(() => {
-    const docId = params.id as string;
-    if (docId) {
-      console.log(`[DocumentDetailPage] Fetching document with ID: ${docId}`);
-      // Simulate API call
-      const foundDocument = mockDocuments.find(d => d.id === docId);
-      setDocument(foundDocument || null);
-      setDocumentHistory(mockHistory[docId] || []);
-      setLoading(false);
+  const fetchDocumentData = useCallback(async () => {
+    if (!docId || authLoading) return;
+    setLoading(true);
+    try {
+      const [docData, historyData] = await Promise.all([
+        apiClient.getDocumentById(docId),
+        apiClient.getDocumentHistory(docId)
+      ]);
+      setDocument(docData);
+      setDocumentHistory(historyData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
 
-      if(foundDocument && user){
-        // Automatically set editing or reviewing if conditions met from query params
-        if(searchParams.get('edit') === 'true' && (foundDocument.authorId === user.id || user.role === 'admin') && (foundDocument.status === 'draft' || foundDocument.status === 'rejected')){
+      // Set initial editing/reviewing state based on fetched doc and user
+      if(docData && user){
+        const canEdit = (user.role === 'admin' || docData.authorId === user.id) && (docData.status === 'draft' || docData.status === 'rejected' || (docData.status === 'approved' && user.role !== 'viewer'));
+        const canReview = (user.role === 'admin' || docData.reviewerId === user.id) && docData.status === 'pending_review';
+
+        if(initialEditMode && canEdit){
             setIsEditing(true);
         } else {
-            setIsEditing(false); // Clear edit mode if not applicable
+            setIsEditing(false);
         }
-        if(searchParams.get('review') === 'true' && (foundDocument.reviewerId === user.id || user.role === 'admin') && foundDocument.status === 'pending_review'){
+        if(initialReviewMode && canReview){
             setIsReviewing(true);
+            if (activeTab !== 'reviewActions') setActiveTab('reviewActions'); // Switch to review tab
         } else {
-            setIsReviewing(false); // Clear review mode
+            setIsReviewing(false);
         }
       }
+
+    } catch (error: any) {
+      console.error(`[DocumentDetailPage] Error fetching document ${docId}:`, error);
+      setDocument(null); // Set to null to show "not found"
+      toast({ title: 'Error', description: error.message || 'Failed to load document.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
-  }, [params.id, user, searchParams]);
+  }, [docId, user, authLoading, toast, initialEditMode, initialReviewMode, activeTab]);
 
-  const handleFormSubmit = (data: any, action: 'save' | 'submit') => {
-    if (!document || !user) return;
-
-    const updatedDocument: Document = {
-      ...document,
-      ...data,
-      status: action === 'save' ? 'draft' : 'pending_review',
-      updatedAt: new Date().toISOString(), // Keep this as current time for updates
-      version: document.version + (document.status === 'approved' ? 1 : 0), // Increment version if editing an approved doc
-    };
-     if (action === 'submit') {
-        updatedDocument.submittedAt = new Date().toISOString(); // Keep this as current time
-        // In real app, assign reviewerId from data.reviewerId
-        const reviewer = mockUsers.find(u => u.id === data.reviewerId);
-        updatedDocument.reviewerName = reviewer?.name;
-    }
-
-
-    // Simulate update
-    const docIndex = mockDocuments.findIndex(d => d.id === document.id);
-    if (docIndex > -1) mockDocuments[docIndex] = updatedDocument;
-
-    console.log(`[DocumentDetailPage] Document ${action}:`, updatedDocument);
-    setDocument(updatedDocument);
-    setIsEditing(false);
-    toast({
-      title: `Document ${action === 'save' ? 'Draft Saved' : 'Submitted'}`,
-      description: `"${updatedDocument.title}" has been updated.`,
-    });
-     // Add to history
-    const historyEntry: DocumentHistoryEntry = {
-        id: `hist-${Date.now()}`, // This is fine for new entries
-        timestamp: new Date().toISOString(), // Current time for new action
-        action: action === 'save' ? `edited (v${updatedDocument.version})` : `resubmitted (v${updatedDocument.version})`,
-        userId: user.id,
-        userName: user.name,
-        details: action === 'submit' ? { reviewer: updatedDocument.reviewerName } : undefined,
-    };
-    setDocumentHistory(prev => [historyEntry, ...prev]);
-    if (mockHistory[document.id]) {
-        mockHistory[document.id].unshift(historyEntry);
-    } else {
-        mockHistory[document.id] = [historyEntry];
-    }
-  };
-
-  const handleApprove = () => {
-    if (!document || !user) return;
-    const approvedDocument: Document = { ...document, status: 'approved', reviewedAt: new Date().toISOString() };
+  useEffect(() => {
+    fetchDocumentData();
+  }, [fetchDocumentData]);
+  
+  useEffect(() => {
+    // Sync URL with editing/reviewing state
+    const newParams = new URLSearchParams(searchParams.toString());
+    if (isEditing) newParams.set('edit', 'true'); else newParams.delete('edit');
+    if (isReviewing) newParams.set('review', 'true'); else newParams.delete('review');
+    if (activeTab !== 'details') newParams.set('tab', activeTab); else newParams.delete('tab');
     
-    const docIndex = mockDocuments.findIndex(d => d.id === document.id);
-    if (docIndex > -1) mockDocuments[docIndex] = approvedDocument;
+    if (newParams.toString() !== searchParams.toString().split('?')[1]) {
+     router.replace(`/documents/${docId}?${newParams.toString()}`, { scroll: false });
+    }
+  }, [isEditing, isReviewing, activeTab, docId, router, searchParams]);
 
-    setDocument(approvedDocument);
-    setIsReviewing(false);
-    console.log(`[DocumentDetailPage] Document approved by ${user.id}:`, approvedDocument);
-     // Add to history
-    const historyEntry: DocumentHistoryEntry = {
-        id: `hist-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        action: 'approved',
-        userId: user.id,
-        userName: user.name,
-    };
-    setDocumentHistory(prev => [historyEntry, ...prev]);
-    mockHistory[document.id]?.unshift(historyEntry);
-  };
 
-  const handleReject = (reason: string) => {
+  const handleFormSubmit = async (data: any, action: 'save_draft' | 'resubmit_for_review') => {
     if (!document || !user) return;
-    const rejectedDocument: Document = { ...document, status: 'rejected', rejectionReason: reason, reviewedAt: new Date().toISOString() };
 
-    const docIndex = mockDocuments.findIndex(d => d.id === document.id);
-    if (docIndex > -1) mockDocuments[docIndex] = rejectedDocument;
-    
-    setDocument(rejectedDocument);
-    setIsReviewing(false);
-    console.log(`[DocumentDetailPage] Document rejected by ${user.id} with reason: ${reason}:`, rejectedDocument);
-    // Add to history
-    const historyEntry: DocumentHistoryEntry = {
-        id: `hist-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        action: 'rejected',
-        userId: user.id,
-        userName: user.name,
-        details: { reason }
+    const payload: any = {
+      title: data.title,
+      content: data.content,
+      action: action, // API expects 'save_draft' or 'resubmit_for_review' for PUT
     };
-    setDocumentHistory(prev => [historyEntry, ...prev]);
-    mockHistory[document.id]?.unshift(historyEntry);
+    if (data.imageUrl) payload.imageUrl = data.imageUrl;
+    if (action === 'resubmit_for_review') {
+      if (!data.reviewerId) {
+        toast({ title: "Reviewer Required", description: "Please select a reviewer before resubmitting.", variant: "destructive" });
+        return;
+      }
+      payload.reviewerId = parseInt(data.reviewerId, 10); // API expects number
+       if (isNaN(payload.reviewerId)) {
+            toast({ title: "Invalid Reviewer", description: "Reviewer ID is not valid.", variant: "destructive" });
+            return;
+        }
+    }
+
+    try {
+      const updatedDocument = await apiClient.updateDocument(document.id, payload);
+      setDocument(updatedDocument);
+      // Fetch history again to get the latest entry
+      const historyData = await apiClient.getDocumentHistory(document.id);
+      setDocumentHistory(historyData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      setIsEditing(false);
+      setActiveTab('details');
+      toast({
+        title: `Document ${action === 'save_draft' ? 'Draft Saved' : 'Resubmitted'}`,
+        description: `"${updatedDocument.title}" has been updated.`,
+      });
+    } catch (error: any) {
+      toast({ title: 'Error Updating Document', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!document || !user) return;
+    try {
+      const approvedDocument = await apiClient.approveDocument(document.id);
+      setDocument(approvedDocument);
+      const historyData = await apiClient.getDocumentHistory(document.id);
+      setDocumentHistory(historyData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      setIsReviewing(false);
+      setActiveTab('details');
+      toast({ title: "Document Approved", description: `"${approvedDocument.title}" has been approved.` });
+    } catch (error: any) {
+      toast({ title: 'Error Approving Document', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleReject = async (reason: string) => {
+    if (!document || !user) return;
+    try {
+      const rejectedDocument = await apiClient.rejectDocument(document.id, reason);
+      setDocument(rejectedDocument);
+      const historyData = await apiClient.getDocumentHistory(document.id);
+      setDocumentHistory(historyData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      setIsReviewing(false);
+      setActiveTab('details');
+      toast({ title: "Document Rejected", description: `"${rejectedDocument.title}" has been rejected.` });
+    } catch (error: any) {
+      toast({ title: 'Error Rejecting Document', description: error.message, variant: 'destructive' });
+    }
+  };
+  
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    if (value === 'reviewActions') {
+        setIsReviewing(true); // Also set reviewing state if not already
+    } else if (isReviewing && value !== 'reviewActions') {
+        // if navigating away from review tab while in review mode, turn off review mode
+        // but only if this tab change wasn't initiated by Review button itself
+    }
   };
 
 
-  if (loading) return <div className="flex justify-center items-center h-64"><Clock className="h-8 w-8 animate-spin" /> <p className="ml-2">Loading document...</p></div>;
-  if (!document) return <div className="text-center mt-8"><AlertTriangle className="mx-auto h-12 w-12 text-destructive" /><p className="mt-4 text-xl">Document not found.</p><Button onClick={() => router.back()} className="mt-4"><ArrowLeft className="mr-2 h-4 w-4" /> Go Back</Button></div>;
+  if (authLoading || loading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /> <p className="ml-2">Loading document...</p></div>;
+  if (!document && !loading) return <div className="text-center mt-8"><AlertTriangle className="mx-auto h-12 w-12 text-destructive" /><p className="mt-4 text-xl">Document not found.</p><Button onClick={() => router.back()} className="mt-4"><ArrowLeft className="mr-2 h-4 w-4" /> Go Back</Button></div>;
   if (!user) return <p className="text-center mt-8">Please log in to view this document.</p>;
+  if (!document) return null; // Should be caught by above
 
 
   const canEditDocument = (user.role === 'admin' || document.authorId === user.id) && (document.status === 'draft' || document.status === 'rejected' || (document.status === 'approved' && user.role !== 'viewer'));
-  const canInitiateReview = (user.role === 'admin' || document.authorId === user.id) && (document.status === 'draft' || document.status === 'rejected');
-  const canPerformReview = (user.role === 'admin' || document.reviewerId === user.id) && document.status === 'pending_review';
+  const canPerformReview = (user.role === 'admin' || (document.reviewerId && document.reviewerId === user.id)) && document.status === 'pending_review';
 
   if (isEditing && canEditDocument) {
     return (
@@ -192,17 +192,19 @@ export default function DocumentDetailPage() {
         document={document}
         currentUser={user}
         onSubmit={handleFormSubmit}
-        onCancel={() => {setIsEditing(false); router.replace(`/documents/${document.id}`);}}
+        onCancel={() => {setIsEditing(false); setActiveTab('details');}}
+        formMode="edit"
       />
     );
   }
   
   const getActionIcon = (action: string) => {
-    if (action.includes('created')) return <FileText className="h-4 w-4 text-blue-500" />;
-    if (action.includes('submitted') || action.includes('resubmitted')) return <Send className="h-4 w-4 text-purple-500" />;
-    if (action.includes('approved')) return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-    if (action.includes('rejected')) return <XCircle className="h-4 w-4 text-red-500" />;
-    if (action.includes('edited')) return <Edit3 className="h-4 w-4 text-yellow-500" />;
+    if (action.toLowerCase().includes('created')) return <FileText className="h-4 w-4 text-blue-500" />;
+    if (action.toLowerCase().includes('submit') || action.toLowerCase().includes('resubmit')) return <Send className="h-4 w-4 text-purple-500" />;
+    if (action.toLowerCase().includes('approve')) return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+    if (action.toLowerCase().includes('reject')) return <XCircle className="h-4 w-4 text-red-500" />;
+    if (action.toLowerCase().includes('edit')) return <Edit3 className="h-4 w-4 text-yellow-500" />;
+    if (action.toLowerCase().includes('assign')) return <User className="h-4 w-4 text-orange-500" />;
     return <History className="h-4 w-4 text-gray-500" />;
   }
 
@@ -231,11 +233,11 @@ export default function DocumentDetailPage() {
           </div>
         </CardHeader>
 
-        <Tabs defaultValue="details" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 m-2 md:m-4">
             <TabsTrigger value="details"><Eye className="mr-2 h-4 w-4" />Details</TabsTrigger>
             <TabsTrigger value="history"><History className="mr-2 h-4 w-4" />History</TabsTrigger>
-            {canPerformReview && isReviewing && <TabsTrigger value="reviewActions"><ShieldCheck className="mr-2 h-4 w-4" />Review</TabsTrigger>}
+            {(canPerformReview || isReviewing) && <TabsTrigger value="reviewActions"><ShieldCheck className="mr-2 h-4 w-4" />Review</TabsTrigger>}
           </TabsList>
           
           <TabsContent value="details" className="p-2 md:p-6">
@@ -276,7 +278,7 @@ export default function DocumentDetailPage() {
                             <div className="flex items-center justify-between text-sm">
                                 <div className="flex items-center gap-2">
                                     {getActionIcon(entry.action)}
-                                    <span className="font-medium capitalize">{entry.action}</span> 
+                                    <span className="font-medium capitalize">{entry.action.replace(/_/g, ' ')}</span> 
                                     <span>by {entry.userName}</span>
                                 </div>
                                 <span className="text-xs text-muted-foreground">{format(new Date(entry.timestamp), "PPP p")}</span>
@@ -295,16 +297,22 @@ export default function DocumentDetailPage() {
             ) : <p>No history available for this document.</p>}
           </TabsContent>
 
-          {canPerformReview && isReviewing && (
+          {(canPerformReview || isReviewing) && ( // Show tab content if user can review OR is already in reviewing mode from query param
             <TabsContent value="reviewActions" className="p-2 md:p-6">
                  <h3 className="text-xl font-semibold mb-4">Review Actions</h3>
-                 <p className="text-muted-foreground mb-4">As the assigned reviewer, you can approve or reject this document.</p>
-                 <ReviewActions
-                    documentId={document.id}
-                    documentTitle={document.title}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
-                  />
+                 { canPerformReview ? (
+                    <>
+                        <p className="text-muted-foreground mb-4">As the assigned reviewer, you can approve or reject this document.</p>
+                        <ReviewActions
+                            documentId={document.id}
+                            documentTitle={document.title}
+                            onApprove={handleApprove}
+                            onReject={handleReject}
+                        />
+                    </> ) : (
+                        <p className="text-muted-foreground">You are not the assigned reviewer or the document is not pending review.</p>
+                    )
+                 }
             </TabsContent>
           )}
 
@@ -312,12 +320,12 @@ export default function DocumentDetailPage() {
 
         <CardFooter className="border-t pt-6 flex flex-wrap justify-end gap-3">
           {canEditDocument && !isEditing && (
-            <Button onClick={() => {setIsEditing(true); router.push(`/documents/${document.id}?edit=true`);}} variant="secondary">
+            <Button onClick={() => {setIsEditing(true); setActiveTab('details');}} variant="secondary">
               <Edit3 className="mr-2 h-4 w-4" /> Edit Document
             </Button>
           )}
-          {canPerformReview && !isReviewing && (
-             <Button onClick={() => {setIsReviewing(true); router.push(`/documents/${document.id}?review=true`);}} variant="default" className="bg-accent hover:bg-accent/90">
+          {canPerformReview && !isReviewing && ( // Only show Review button if not already in review mode via tab/URL
+             <Button onClick={() => {setIsReviewing(true); setActiveTab('reviewActions');}} variant="default" className="bg-accent hover:bg-accent/90">
               <ShieldCheck className="mr-2 h-4 w-4" /> Review Document
             </Button>
           )}
