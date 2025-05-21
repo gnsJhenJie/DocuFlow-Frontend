@@ -1,0 +1,40 @@
+{
+  "name": "DocuFlow Dev Container",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bullseye",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "IDX.aI.enableInlineCompletion": true,
+        "IDX.aI.enableCodebaseIndexing": true,
+        "typescript.tsdk": "node_modules/typescript/lib"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.vscode-typescript-next",
+        "GitHub.copilot",
+        "GoogleCloudTools.genkit-tools",
+        "VisualStudioExptTeam.vscodeintellicode"
+      ]
+    }
+  },
+  "forwardPorts": [9002, 4000],
+  "portsAttributes": {
+    "9002": {
+      "label": "Next.js App (Dev)",
+      "onAutoForward": "openPreview"
+    },
+    "4000": {
+      "label": "Genkit UI",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "postCreateCommand": "npm install",
+  "remoteUser": "node"
+}
