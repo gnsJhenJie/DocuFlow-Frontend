@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -11,7 +12,7 @@ import { ReviewActions } from '@/components/documents/ReviewActions';
 import type { Document, DocumentHistoryEntry } from '@/lib/types';
 import { mockDocuments, mockUsers } from '@/lib/mockData';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Edit3, Eye, Clock, CheckCircle2, XCircle, MessageSquare, ShieldCheck, Send, FileText, History } from 'lucide-react';
+import { ArrowLeft, Edit3, Eye, Clock, CheckCircle2, XCircle, MessageSquare, ShieldCheck, Send, FileText, History, AlertTriangle } from 'lucide-react';
 import { DocumentStatusBadge } from '@/components/documents/DocumentStatusBadge';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -319,3 +320,6 @@ export default function DocumentDetailPage() {
     </div>
   );
 }
+
+
+    
