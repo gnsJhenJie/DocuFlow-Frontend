@@ -1,0 +1,74 @@
+import Link from 'next/link';
+import Image from 'next/image';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import type { Document } from '@/lib/types';
+import { FileText, Edit3, Eye, ShieldCheck, MessageSquareWarning } from 'lucide-react';
+import { DocumentStatusBadge } from './DocumentStatusBadge';
+import { formatDistanceToNow } from 'date-fns';
+
+interface DocumentCardProps {
+  document: Document;
+  currentUserRole: 'admin' | 'editor' | 'reviewer' | 'viewer'; // To control actions
+}
+
+export function DocumentCard({ document, currentUserRole }: DocumentCardProps) {
+  const canEdit = (currentUserRole === 'editor' || currentUserRole === 'admin') && (document.status === 'draft' || document.status === 'rejected');
+  const canReview = (currentUserRole === 'reviewer' || currentUserRole === 'admin') && document.status === 'pending_review';
+
+  return (
+    <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 rounded-lg">
+      {document.imageUrl && (
+        <div className="relative h-48 w-full">
+          <Image 
+            src={document.imageUrl} 
+            alt={document.title} 
+            layout="fill" 
+            objectFit="cover" 
+            data-ai-hint="document preview"
+          />
+        </div>
+      )}
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-lg leading-tight hover:text-primary transition-colors">
+            <Link href={`/documents/${document.id}`}>{document.title}</Link>
+          </CardTitle>
+          <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-2" />
+        </div>
+        <CardDescription className="text-xs">
+          By {document.authorName} &bull; Last updated: {formatDistanceToNow(new Date(document.updatedAt), { addSuffix: true })}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex-grow pb-3">
+        <p className="text-sm text-muted-foreground line-clamp-3">
+          {document.content}
+        </p>
+      </CardContent>
+      <CardFooter className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-2 border-t">
+        <DocumentStatusBadge status={document.status} />
+        <div className="flex gap-2 mt-2 sm:mt-0">
+          <Link href={`/documents/${document.id}`} passHref>
+            <Button variant="outline" size="sm">
+              <Eye className="mr-1.5 h-3.5 w-3.5" /> View
+            </Button>
+          </Link>
+          {canEdit && (
+            <Link href={`/documents/${document.id}?edit=true`} passHref>
+              <Button variant="secondary" size="sm">
+                <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Edit
+              </Button>
+            </Link>
+          )}
+          {canReview && (
+             <Link href={`/documents/${document.id}?review=true`} passHref>
+              <Button variant="default" size="sm" className="bg-accent hover:bg-accent/90">
+                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Review
+              </Button>
+            </Link>
+          )}
+        </div>
+      </CardFooter>
+    </Card>
+  );
+}
