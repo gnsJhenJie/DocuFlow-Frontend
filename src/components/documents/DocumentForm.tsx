@@ -11,7 +11,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
-import { UploadCloud, Save, Send, XCircle } from 'lucide-react';
+import { UploadCloud, Save, Send, XCircle, Info } from 'lucide-react';
 import { mockUsers } from '@/lib/mockData'; // For reviewer selection
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -111,6 +111,10 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
               className="mt-1 min-h-[200px]"
             />
             {errors.content && <p className="text-sm text-destructive mt-1">{errors.content.message}</p>}
+            <p className="mt-1 text-xs text-muted-foreground flex items-center">
+              <Info className="h-3 w-3 mr-1" />
+              You can use Markdown for formatting (e.g., `## Heading`, `*italic*`, `**bold**`) and images (e.g., `![alt text](image_url)`).
+            </p>
           </div>
 
           <div>

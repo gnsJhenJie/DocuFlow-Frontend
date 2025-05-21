@@ -12,13 +12,16 @@ import { ReviewActions } from '@/components/documents/ReviewActions';
 import type { Document, DocumentHistoryEntry } from '@/lib/types';
 import { mockDocuments, mockUsers } from '@/lib/mockData';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Edit3, Eye, Clock, CheckCircle2, XCircle, MessageSquare, ShieldCheck, Send, FileText, History, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Edit3, Eye, Clock, CheckCircle2, XCircle, MessageSquare, ShieldCheck, Send, FileText, History, AlertTriangleIcon, AlertTriangle } from 'lucide-react';
 import { DocumentStatusBadge } from '@/components/documents/DocumentStatusBadge';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
 
 // Define a fixed reference point for mock dates to ensure consistency
 const MOCK_HISTORY_REFERENCE_NOW = new Date('2024-07-20T12:00:00Z').getTime();
@@ -258,8 +261,8 @@ export default function DocumentDetailPage() {
                 </Alert>
             )}
 
-            <article className="prose prose-sm sm:prose-base lg:prose-lg xl:prose-xl max-w-none break-words whitespace-pre-wrap p-1">
-              {document.content}
+            <article className="prose prose-sm sm:prose-base lg:prose-lg xl:prose-xl max-w-none p-1">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{document.content}</ReactMarkdown>
             </article>
           </TabsContent>
 
@@ -323,6 +326,3 @@ export default function DocumentDetailPage() {
     </div>
   );
 }
-
-
-    

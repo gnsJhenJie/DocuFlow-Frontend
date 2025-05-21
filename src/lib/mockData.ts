@@ -14,7 +14,7 @@ export const mockDocuments: Document[] = [
   {
     id: 'doc1',
     title: 'Q1 Marketing Strategy',
-    content: 'This document outlines the marketing strategy for the first quarter. It includes an analysis of current market trends, target audience segmentation, and key performance indicators (KPIs). We will focus on digital channels and content marketing to drive engagement and lead generation.',
+    content: '## Q1 Marketing Strategy\n\nThis document outlines the **marketing strategy** for the first quarter. \n\nIt includes:\n\n- An analysis of current market trends.\n- Target audience segmentation.\n- Key performance indicators (KPIs).\n\nWe will focus on *digital channels* and content marketing to drive engagement and lead generation.\n\n### Example Image\n![Placeholder chart for marketing data](https://placehold.co/400x200.png)\n*This is a placeholder image representing marketing data.*\n\n### Next Steps\n1. Finalize budget allocation.\n2. Launch social media campaigns.\n3. Monitor KPIs weekly.',
     authorId: 'user2',
     authorName: 'Bob The Builder',
     reviewerId: 'user3',
