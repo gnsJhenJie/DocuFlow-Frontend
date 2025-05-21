@@ -2,8 +2,19 @@
 // src/lib/apiClient.ts
 import type { AuthResponse, PaginatedDocumentsResponse, Document, User, DocumentHistoryEntry } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
-console.log('[ApiClient] Using API_BASE_URL:', API_BASE_URL); // Added for debugging
+let determinedApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+if (!determinedApiBaseUrl || determinedApiBaseUrl.trim() === '') {
+  console.warn(
+    '[ApiClient] NEXT_PUBLIC_API_BASE_URL is not set, empty, or whitespace. Falling back to "/api". ' +
+    'Ensure .env.local is in the project root, correctly configured (e.g., NEXT_PUBLIC_API_BASE_URL="http://localhost:8080/api"), ' +
+    'and that you have RESTARTED your Next.js development server after changes to .env.local.'
+  );
+  determinedApiBaseUrl = '/api';
+}
+const API_BASE_URL = determinedApiBaseUrl;
+console.log('[ApiClient] Effective API_BASE_URL being used:', API_BASE_URL);
+
 
 interface RequestOptions extends RequestInit {
   needsAuth?: boolean;
@@ -21,8 +32,6 @@ async function request<T>(
     const token = typeof window !== 'undefined' ? localStorage.getItem('docuflow_jwt_token') : null;
     if (token) {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-    } else {
-      // console.warn(`Auth token not found for ${endpoint}`); // Reduced noise, token might not be needed for all authed routes initially
     }
   }
 
@@ -31,15 +40,20 @@ async function request<T>(
     headers,
   };
 
+  const fullUrl = `${API_BASE_URL}${endpoint}`;
+  console.log(`[ApiClient] Attempting to fetch: ${fullUrl}`, options.method || 'GET'); // Log the full URL and method
+
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    const response = await fetch(fullUrl, config);
 
     if (!response.ok) {
       let errorData;
       try {
         errorData = await response.json();
       } catch (e) {
-        errorData = { detail: response.statusText || 'An unknown error occurred' };
+        // If response is not JSON (e.g., HTML error page from a misconfigured server or proxy)
+        const textError = await response.text();
+        errorData = { detail: response.statusText || 'An unknown error occurred', responseBody: textError.substring(0, 500) };
       }
       console.error('API Error:', endpoint, response.status, errorData);
       throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
@@ -50,8 +64,8 @@ async function request<T>(
     }
     return await response.json();
   } catch (error) {
-    console.error(`API request failed for ${endpoint}:`, error);
-    throw error;
+    console.error(`API request failed for ${endpoint} to ${fullUrl}:`, error);
+    throw error; // Re-throw to be caught by calling function
   }
 }
 
@@ -71,17 +85,31 @@ export const apiClient = {
   updateUserRole: (userId: string, role: string) => request<User>(`/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
 
   // Documents
-  createDocument: (data: any) => request<Document>('/documents', { method: 'POST', body: JSON.stringify(data) }),
+  createDocument: (data: any) => {
+    // Ensure reviewerId is number if present
+    const payload = { ...data };
+    if (payload.reviewerId && typeof payload.reviewerId === 'string') {
+      payload.reviewerId = parseInt(payload.reviewerId, 10);
+    }
+    return request<Document>('/documents', { method: 'POST', body: JSON.stringify(payload) });
+  },
   getDocuments: (params: URLSearchParams) => request<PaginatedDocumentsResponse>(`/documents?${params.toString()}`),
   getDocumentById: (id: string) => request<Document>(`/documents/${id}`),
-  updateDocument: (id: string, data: any) => request<Document>(`/documents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  updateDocument: (id: string, data: any) => {
+     // Ensure reviewerId is number if present
+    const payload = { ...data };
+    if (payload.reviewerId && typeof payload.reviewerId === 'string') {
+      payload.reviewerId = parseInt(payload.reviewerId, 10);
+    }
+    return request<Document>(`/documents/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+  },
   deleteDocument: (id: string) => request<{ message: string }>(`/documents/${id}`, { method: 'DELETE' }),
   approveDocument: (id: string) => request<Document>(`/documents/${id}/approve`, { method: 'POST' }),
   rejectDocument: (id: string, reason: string) => request<Document>(`/documents/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
-  reassignReviewer: (documentId: string, newReviewerId: number) => request<Document>(`/documents/${documentId}/reassign`, { method: 'POST', body: JSON.stringify({ newReviewerId }) }),
+  reassignReviewer: (documentId: string, newReviewerId: number) => // API spec says number
+    request<Document>(`/documents/${documentId}/reassign`, { method: 'POST', body: JSON.stringify({ newReviewerId }) }),
   getDocumentHistory: (id: string) => request<DocumentHistoryEntry[]>(`/documents/${id}/history`),
 
   // Upload
   uploadImage: (formData: FormData) => request<{ imageUrl: string }>('/upload', { method: 'POST', body: formData, isFormData: true }),
 };
-
