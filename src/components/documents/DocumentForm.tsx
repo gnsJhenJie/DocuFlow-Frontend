@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Document, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +12,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
-import { UploadCloud, Save, Send, XCircle, Info } from 'lucide-react';
+import { UploadCloud, Save, Send, XCircle, Info, ImagePlus } from 'lucide-react';
 import { mockUsers } from '@/lib/mockData'; // For reviewer selection
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -35,8 +36,11 @@ interface DocumentFormProps {
 export function DocumentForm({ document, currentUser, onSubmit, onCancel }: DocumentFormProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(document?.imageUrl || null);
   const { toast } = useToast();
+  const contentTextAreaRef = useRef<HTMLTextAreaElement>(null);
+  const contentImageUploadRef = useRef<HTMLInputElement>(null);
 
-  const { control, handleSubmit, register, formState: { errors }, reset, watch, setValue } = useForm<DocumentFormData>({
+
+  const { control, handleSubmit, register, formState: { errors }, reset, watch, setValue, getValues } = useForm<DocumentFormData>({
     resolver: zodResolver(documentSchema),
     defaultValues: {
       title: document?.title || '',
@@ -58,18 +62,95 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
     }
   }, [document, reset]);
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
-        setValue('imageUrl', reader.result as string); // Store as base64 for mock, real app would upload
-        console.log('[DocumentForm] Image selected for upload (mock):', file.name);
+        setValue('imageUrl', reader.result as string); 
+        console.log('[DocumentForm] Cover image selected (mock):', file.name);
       };
       reader.readAsDataURL(file);
     }
   };
+
+  const insertImageMarkdown = (dataUri: string, altText: string) => {
+    const textarea = contentTextAreaRef.current;
+    if (!textarea) return;
+
+    const markdownToInsert = `![${altText}](${dataUri})\n`;
+    const currentContent = getValues('content');
+    const { selectionStart, selectionEnd } = textarea;
+
+    const newContent = 
+      currentContent.substring(0, selectionStart) + 
+      markdownToInsert + 
+      currentContent.substring(selectionEnd);
+    
+    setValue('content', newContent, { shouldValidate: true });
+
+    // Try to set cursor position after inserted markdown
+    // This needs to be done after React re-renders the textarea with the new value
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = selectionStart + markdownToInsert.length;
+    }, 0);
+
+    toast({
+        title: "Image Inserted",
+        description: `${altText} added to content.`,
+    });
+  };
+
+  const processContentImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+        toast({ title: "Invalid File", description: "Please select an image file.", variant: "destructive" });
+        return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        insertImageMarkdown(reader.result as string, file.name || "Uploaded Image");
+    };
+    reader.onerror = () => {
+        toast({ title: "Error Reading File", description: "Could not read the image file.", variant: "destructive"});
+    }
+    reader.readAsDataURL(file);
+  };
+
+  const handleContentImageSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      processContentImageFile(file);
+    }
+    // Reset file input to allow selecting the same file again
+    if (event.target) {
+        event.target.value = ""; 
+    }
+  };
+
+  const handleContentDrop = (event: React.DragEvent<HTMLTextAreaElement>) => {
+    event.preventDefault();
+    const files = event.dataTransfer.files;
+    if (files && files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.type.startsWith('image/')) {
+          processContentImageFile(file);
+          break; // Process one image at a time from drop for simplicity
+        }
+      }
+    }
+  };
+
+  const handleContentDragOver = (event: React.DragEvent<HTMLTextAreaElement>) => {
+    event.preventDefault(); // Necessary to allow dropping
+  };
+
+  const triggerContentImageUpload = () => {
+    contentImageUploadRef.current?.click();
+  };
+
 
   const reviewers = mockUsers.filter(u => u.role === 'reviewer' || u.role === 'admin');
 
@@ -103,26 +184,41 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
           </div>
 
           <div>
-            <Label htmlFor="content">Content</Label>
+            <div className="flex justify-between items-center mb-1">
+              <Label htmlFor="content">Content</Label>
+              <Button type="button" variant="outline" size="sm" onClick={triggerContentImageUpload}>
+                <ImagePlus className="mr-2 h-4 w-4" /> Insert Image
+              </Button>
+            </div>
             <Textarea
               id="content"
               {...register('content')}
-              placeholder="Write your document content here..."
+              ref={contentTextAreaRef} // Assign ref here
+              placeholder="Write your document content here (supports Markdown and image drop)..."
               className="mt-1 min-h-[200px]"
+              onDrop={handleContentDrop}
+              onDragOver={handleContentDragOver}
             />
             {errors.content && <p className="text-sm text-destructive mt-1">{errors.content.message}</p>}
             <p className="mt-1 text-xs text-muted-foreground flex items-center">
               <Info className="h-3 w-3 mr-1" />
-              You can use Markdown for formatting (e.g., `## Heading`, `*italic*`, `**bold**`) and images (e.g., `![alt text](image_url)`).
+              Use Markdown for formatting (e.g., `## H`, `*i*`, `**b**`). Drag & drop or use button to insert images.
             </p>
+             <input
+              type="file"
+              accept="image/*"
+              ref={contentImageUploadRef}
+              style={{ display: 'none' }}
+              onChange={handleContentImageSelected}
+            />
           </div>
 
           <div>
             <Label htmlFor="imageUpload">Cover Image (Optional)</Label>
             <div className="mt-1 flex items-center gap-4">
-              <Input id="imageUpload" type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+              <Input id="imageUpload" type="file" accept="image/*" onChange={handleCoverImageChange} className="hidden" />
               <Button type="button" variant="outline" onClick={() => document.getElementById('imageUpload')?.click()}>
-                <UploadCloud className="mr-2 h-4 w-4" /> Upload Image
+                <UploadCloud className="mr-2 h-4 w-4" /> Upload Cover Image
               </Button>
               {imagePreview && (
                 <div className="relative w-32 h-20 rounded border overflow-hidden">
@@ -189,3 +285,5 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
     </Card>
   );
 }
+
+    
