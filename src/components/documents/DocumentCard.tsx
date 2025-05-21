@@ -1,3 +1,7 @@
+
+'use client'; // Ensure this is a client component
+
+import { useState, useEffect } from 'react'; // Import hooks
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +10,7 @@ import type { Document } from '@/lib/types';
 import { FileText, Edit3, Eye, ShieldCheck, MessageSquareWarning } from 'lucide-react';
 import { DocumentStatusBadge } from './DocumentStatusBadge';
 import { formatDistanceToNow } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
 interface DocumentCardProps {
   document: Document;
@@ -13,6 +18,12 @@ interface DocumentCardProps {
 }
 
 export function DocumentCard({ document, currentUserRole }: DocumentCardProps) {
+  const [isClient, setIsClient] = useState(false); // State for client-side rendering
+
+  useEffect(() => {
+    setIsClient(true); // Set to true after component mounts
+  }, []);
+
   const canEdit = (currentUserRole === 'editor' || currentUserRole === 'admin') && (document.status === 'draft' || document.status === 'rejected');
   const canReview = (currentUserRole === 'reviewer' || currentUserRole === 'admin') && document.status === 'pending_review';
 
@@ -37,7 +48,8 @@ export function DocumentCard({ document, currentUserRole }: DocumentCardProps) {
           <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-2" />
         </div>
         <CardDescription className="text-xs">
-          By {document.authorName} &bull; Last updated: {formatDistanceToNow(new Date(document.updatedAt), { addSuffix: true })}
+          By {document.authorName} &bull; Last updated: {' '}
+          {isClient ? formatDistanceToNow(new Date(document.updatedAt), { addSuffix: true }) : <Skeleton className="h-3 w-24 inline-block" />}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow pb-3">

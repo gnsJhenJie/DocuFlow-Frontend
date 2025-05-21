@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +24,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton'; // Added Skeleton import
 
 interface AdminDocumentTableProps {
   documents: Document[];
@@ -36,6 +38,11 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [newReviewerId, setNewReviewerId] = useState<string>('');
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false); // Added for client-side rendering
+
+  useEffect(() => {
+    setIsClient(true); // Set to true after component mounts
+  }, []);
 
   const reviewers = mockUsers.filter(u => u.role === 'reviewer' || u.role === 'admin');
 
@@ -92,8 +99,12 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
                 </TableCell>
                 <TableCell>{doc.authorName}</TableCell>
                 <TableCell>{doc.reviewerName || 'N/A'}</TableCell>
-                <TableCell>{formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}</TableCell>
-                <TableCell>{doc.submittedAt ? format(new Date(doc.submittedAt), 'PP') : 'N/A'}</TableCell>
+                <TableCell>
+                  {isClient ? formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true }) : <Skeleton className="h-4 w-24" />}
+                </TableCell>
+                <TableCell>
+                  {isClient ? (doc.submittedAt ? format(new Date(doc.submittedAt), 'PP') : 'N/A') : <Skeleton className="h-4 w-20" />}
+                </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
