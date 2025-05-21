@@ -40,20 +40,38 @@ yarn install
 
 ### 3. Environment Variables
 
-This project is a frontend application. If you connect it to your own custom backend, you will likely need to configure environment variables for API endpoints, authentication keys, or other backend-specific settings.
+This project is a frontend application. To connect it to your own custom backend, you will need to configure environment variables for your API endpoints.
 
-Create a `.env.local` file in the root of your project for these variables. For example:
+Create a `.env.local` file in the root of your project. This file should **not** be committed to version control. Add your backend API base URL here:
 
 ```env
-# Example for a custom backend API endpoint
-NEXT_PUBLIC_API_BASE_URL="YOUR_BACKEND_API_ENDPOINT"
-NEXT_PUBLIC_SOME_OTHER_KEY="YOUR_OTHER_CUSTOM_KEY"
+# Example for your custom backend API endpoint
+NEXT_PUBLIC_API_BASE_URL="http://localhost:8080/api"
+# Add any other public environment variables your frontend might need
+# NEXT_PUBLIC_SOME_OTHER_KEY="YOUR_OTHER_CUSTOM_KEY"
 
 # For Genkit with Google AI (Gemini) - THIS IS STILL NEEDED FOR AI FEATURES
 GOOGLE_API_KEY="YOUR_GOOGLE_API_KEY_FOR_GEMINI"
 ```
 
-**Note**: The `GOOGLE_API_KEY` is for Genkit and should be a Google Generative Language API key if you intend to use the AI features. Other variables will depend on your specific backend implementation. Ensure any variables that need to be accessible in the browser are prefixed with `NEXT_PUBLIC_`.
+**Note**:
+*   Any variables that need to be accessible in the browser **must** be prefixed with `NEXT_PUBLIC_`.
+*   The `GOOGLE_API_KEY` is for Genkit and should be a Google Generative Language API key if you intend to use the AI features.
+*   The `NEXT_PUBLIC_API_BASE_URL` should point to the root of your backend API.
+
+**Using the API Base URL in your Frontend Code:**
+
+You can then access this base URL in your frontend JavaScript/TypeScript files like this:
+
+```javascript
+// Example: src/lib/apiClient.js (or any frontend file)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+async function fetchSomeData() {
+  const response = await fetch(`${API_BASE_URL}/your-endpoint`);
+  // ... handle response
+}
+```
 
 ### 4. Running the Development Server
 
