@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -19,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const documentSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }).max(100),
-  content: z.string().min(10, { message: "Content must be at least 10 characters." }),
+  content: z.string().min(10, { message: "Content must be at least 10 characters." }).optional().default(''), // Made optional and default to empty for safer handling initially
   imageUrl: z.string().optional(),
   reviewerId: z.string().optional(),
 });
@@ -80,7 +79,7 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
     if (!textarea) return;
 
     const markdownToInsert = `![${altText}](${dataUri})\n`;
-    const currentContent = getValues('content');
+    const currentContent = getValues('content') || ''; // Ensure currentContent is a string
     const { selectionStart, selectionEnd } = textarea;
 
     const newContent = 
@@ -163,8 +162,13 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel }: Docu
         });
         return;
     }
-    console.log(`[DocumentForm] Form submitted with action: ${action}`, data);
-    onSubmit(data, action);
+    // Ensure content is at least an empty string if it's undefined, before submitting
+    const submissionData = {
+        ...data,
+        content: data.content || '', 
+    };
+    console.log(`[DocumentForm] Form submitted with action: ${action}`, submissionData);
+    onSubmit(submissionData, action);
   };
 
   return (
