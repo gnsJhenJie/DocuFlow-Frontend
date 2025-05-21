@@ -6,12 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-// Select for role simulation is removed as role comes from backend or OAuth profile
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import type { Role } from '@/lib/types'; // Role might still be useful for display or client-side logic if needed
+import type { Role } from '@/lib/types';
 import { AppLogo } from '@/components/AppLogo';
-import { Github } from 'lucide-react'; // MessageSquare removed as it was generic
+import { Github } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
@@ -29,7 +28,7 @@ export default function LoginPage() {
     }
     try {
       await login(email, password);
-      // AuthProvider will redirect on successful login via its useEffect or direct call
+      // AuthProvider will redirect on successful login
     } catch (error: any) {
       toast({
         title: 'Login Failed',
@@ -40,37 +39,30 @@ export default function LoginPage() {
   };
   
   const handleOAuthLogin = async (provider: string) => {
-    // Real OAuth would redirect to the provider, then callback to backend, then frontend.
-    // This is a MOCK for the frontend part of "logging in via OAuth"
-    // The backend needs to handle the actual OAuth flow and token exchange.
-    // Here, we're simulating that the OAuth flow completed and we got some user info.
-    // Then we call our `login` function with an `isOAuth` flag.
-    // The `login` function in AuthContext would then ideally call a specific backend endpoint
-    // like `/api/auth/oauth/google` or `/api/auth/oauth/github` which would handle
-    // creating/logging in the user and returning a JWT.
-    // For this iteration, we'll just use the existing login with placeholder password.
-    console.log(`[LoginPage] Simulating OAuth login attempt with ${provider}`);
-    let oauthEmail = 'bob-editor@example.com'; // Example
+    // This function attempts to log in or register a user using details
+    // notionally obtained from an OAuth provider. The AuthContext's login function
+    // will call the backend API.
+    let oauthEmail = 'bob-editor@example.com'; // Example default for GitHub
     let oauthName = 'Bob OAuth Editor';
     let oauthRole: Role = 'editor';
 
     if (provider === 'Google') {
-        oauthEmail = 'charlie-reviewer@example.com'; // Example
+        oauthEmail = 'charlie-reviewer@example.com'; // Example default for Google
         oauthName = 'Charlie OAuth Reviewer';
         oauthRole = 'reviewer';
     }
     
     try {
-      // The `login` function in AuthContext needs to be adapted to handle this.
-      // It might call a specific OAuth login endpoint on your backend,
-      // or your backend's general /login might be able to create user on the fly if they don't exist.
-      // For now, we pass `isOAuth: true` and `oAuthUser` details.
-      await login(oauthEmail, "OAUTH_SIMULATED_PASSWORD", oauthRole, true, { name: oauthName, email: oauthEmail, role: oauthRole });
-      // AuthProvider will redirect on successful login
+      // The AuthContext's login function is called with isOAuth: true.
+      // It will attempt to use apiClient.login, potentially with a placeholder password,
+      // and pass along name and role. The backend's /api/auth/login (or /register
+      // if the backend handles it) needs to accommodate this flow.
+      await login(oauthEmail, "OAUTH_PLACEHOLDER_PASSWORD", oauthRole, true, { name: oauthName, email: oauthEmail, role: oauthRole });
+      // AuthProvider should redirect on successful login
     } catch (error: any) {
-      toast({
+       toast({
         title: `${provider} Login Failed`,
-        description: error.message || `Could not log in with ${provider}.`,
+        description: error.message || `Could not log in with ${provider}. Ensure your backend supports this OAuth flow.`,
         variant: 'destructive',
       });
     }
@@ -131,14 +123,13 @@ export default function LoginPage() {
                 required
               />
             </div>
-            {/* Role selection is removed as it should come from backend */}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
         </CardContent>
          <CardFooter className="text-center text-sm text-muted-foreground">
-            OAuth login is simulated.
+            Login with Google or GitHub.
         </CardFooter>
       </Card>
     </div>
