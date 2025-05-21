@@ -8,18 +8,22 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppLogo } from '@/components/AppLogo';
 import { Toaster } from "@/components/ui/toaster";
-import { usePathname } from 'next/navigation'; // useRouter removed as redirection is handled by AuthContext
-import { Loader2 } from 'lucide-react'; // Added for loading indicator
+import { usePathname } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react'; // Added useState, useEffect
 
 function LayoutContent({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading: authIsLoading } = useAuth(); // Renamed loading to authIsLoading to avoid conflict
   const pathname = usePathname();
+  const [isMounted, setIsMounted] = useState(false);
 
-  // AuthContext now handles all redirection logic.
-  // AppLayout simply renders based on AuthContext's state.
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
-  if (loading) {
-    // Show a full-page loader while AuthContext is initializing or processing auth state
+  if (!isMounted || authIsLoading) {
+    // This will be rendered on server (isMounted=false) and initial client render (isMounted=false)
+    // and while auth is still loading on the client.
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -28,25 +32,31 @@ function LayoutContent({ children }: { children: ReactNode }) {
     );
   }
 
-  // If not loading and not on login page, but no user, AuthContext will redirect.
-  // If on login page, or if user exists, render children.
-  // The /auth/callback page will also be handled correctly by AuthContext's logic.
+  // At this point, isMounted is true and authIsLoading is false.
+  // We can now safely check user status and pathname for client-side rendering decisions.
+
   if (pathname === '/login' || pathname.startsWith('/auth/callback')) {
-     // For login and callback pages, render children directly without the main layout
-     // AuthContext handles whether children (like OAuthCallbackContent) should render or redirect
+     // For login and callback pages, render children directly.
+     // AuthContext will handle redirection logic within those pages or based on auth state.
      return <>{children}</>;
   }
-  
-  // If user is not authenticated and we are not on a public page (login/callback),
-  // AuthContext would have redirected. If we reach here without a user, it's an unexpected state
-  // or AuthContext is still about to redirect. For safety, show a loading/message.
+
   if (!user) {
+    // AuthContext should have redirected to /login if !user and not on login/callback.
+    // This state (isMounted=true, authIsLoading=false, !user, not on login/callback)
+    // should ideally not be reached if AuthContext's redirection is working.
+    // However, as a fallback or if AuthContext is still initializing, show loading.
+    // Or, if AuthContext has determined no user and needs to redirect, it will handle it.
+    // This log helps if we unexpectedly reach here.
+    console.log('[AppLayout] No user, not on login/callback. AuthContext should handle redirect.');
+    // It's safer to let AuthContext's useEffect handle the redirect rather than duplicating here.
+    // Displaying a minimal loader while AuthContext's redirect might be taking effect.
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-3 text-lg text-muted-foreground">Checking authentication...</p>
-      </div>
-    );
+        <div className="flex h-screen items-center justify-center bg-background">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="ml-3 text-lg text-muted-foreground">Checking authentication...</p>
+        </div>
+      );
   }
 
   // Authenticated user, render the full app layout
@@ -56,7 +66,6 @@ function LayoutContent({ children }: { children: ReactNode }) {
         <SidebarHeader className="p-4 items-center">
            <div className="flex items-center justify-between w-full">
              <AppLogo />
-             {/* The trigger here is for icon-only mode to expand again or for offcanvas to show */}
              <SidebarTrigger className="hidden group-data-[collapsible=icon]:flex group-data-[collapsible=offcanvas]:flex" />
            </div>
         </SidebarHeader>
