@@ -36,7 +36,7 @@ const navItems: NavItem[] = [
     icon: ShieldAlert,
     roles: ['admin'],
     subItems: [
-      { href: '/admin/documents', label: 'All Documents', icon: UploadCloud, roles: ['admin'] },
+      { href: '/admin', label: 'All Documents', icon: UploadCloud, roles: ['admin'] }, // Changed from /admin/documents
       { href: '/admin/users', label: 'User Management', icon: Users, roles: ['admin'] }, // Placeholder
     ]
   },
@@ -51,6 +51,7 @@ interface DocumentStatusNavItem {
   href: string;
 }
 
+// TODO: These counts should be dynamic based on actual data
 const documentStatusNavItems: DocumentStatusNavItem[] = [
     { label: 'Drafts', icon: Edit3, status: 'draft', count: 5, href: '/documents?status=draft' },
     { label: 'Pending Review', icon: Clock, status: 'pending_review', count: 3, href: '/documents?status=pending_review' },
@@ -70,15 +71,42 @@ export function SidebarNav() {
       return null;
     }
 
-    // For precise active state, compare full href, especially for items with query params
-    const isActive = item.subItems
-        ? pathname.startsWith(item.href.split('?')[0]) // Base path for parent items
-        : pathname === item.href.split('?')[0] && 
-          (item.href.includes('?') ? new URLSearchParams(pathname.split('?')[1]).toString() === new URLSearchParams(item.href.split('?')[1]).toString() : true);
+    const baseItemPath = item.href.split('?')[0];
+    const currentBasePath = pathname.split('?')[0];
+    
+    let isActive = false;
+    if (item.subItems && item.subItems.length > 0) {
+      // For parent items with sub-items, active if current path starts with item's base path
+      // AND it's not a more specific sub-item that is active.
+      // Or if the current path IS the item's path (e.g. /admin for Admin Panel itself)
+      isActive = currentBasePath === baseItemPath || currentBasePath.startsWith(baseItemPath + '/');
+      // If one of the sub-items is a more exact match for the current path (excluding query params),
+      // then the parent itself might not be "active" in the sense of its direct link.
+      // However, for expanding the menu, startsWith is good. For highlighting the link itself, exact match is better.
+      // The current logic for `isActive` on parent `ButtonComponent` will rely on this.
+    } else {
+      // For items without sub-items, or for sub-items themselves:
+      // Check if base paths match
+      isActive = currentBasePath === baseItemPath;
+      // If base paths match and there are query parameters, check them too.
+      if (isActive && item.href.includes('?')) {
+        const itemParams = new URLSearchParams(item.href.split('?')[1]);
+        const currentParams = new URLSearchParams(pathname.split('?')[1] || '');
+        isActive = true; // Assume active if base paths match
+        itemParams.forEach((value, key) => {
+          if (currentParams.get(key) !== value) {
+            isActive = false;
+          }
+        });
+      }
+    }
 
 
     const ButtonComponent = isSubItem ? SidebarMenuSubButton : SidebarMenuButton;
     const ItemComponent = isSubItem ? SidebarMenuSubItem : SidebarMenuItem;
+
+    const showSubMenu = item.subItems && item.subItems.length > 0 && (currentBasePath === baseItemPath || currentBasePath.startsWith(baseItemPath + '/'));
+
 
     return (
       <ItemComponent key={item.href}>
@@ -91,7 +119,7 @@ export function SidebarNav() {
             )}
           </ButtonComponent>
         </Link>
-        {item.subItems && isActive && ( // isActive check for expanding submenus
+        {showSubMenu && ( 
           <SidebarMenuSub>
             {item.subItems.map(subItem => renderNavItem(subItem, true))}
           </SidebarMenuSub>
@@ -101,7 +129,7 @@ export function SidebarNav() {
   };
 
   const renderDocumentStatusNavItem = (item: DocumentStatusNavItem) => {
-    const currentParams = new URLSearchParams(pathname.split('?')[1]);
+    const currentParams = new URLSearchParams(pathname.split('?')[1] || '');
     const itemParams = new URLSearchParams(item.href.split('?')[1]);
     const isActive = pathname.startsWith(item.href.split('?')[0]) && currentParams.get('status') === itemParams.get('status') && !currentParams.get('view');
 
@@ -140,3 +168,4 @@ export function SidebarNav() {
     </div>
   );
 }
+
