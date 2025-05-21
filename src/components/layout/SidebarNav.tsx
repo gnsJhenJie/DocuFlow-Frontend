@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -14,25 +15,25 @@ interface NavItem {
   icon: React.ElementType;
   roles?: User['role'][];
   subItems?: NavItem[];
-  badgeCount?: number; 
+  badgeCount?: number;
 }
 
 const navItems: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: Home, roles: ['viewer', 'editor', 'reviewer', 'admin'] },
-  { 
-    href: '/documents', 
-    label: 'My Documents', 
-    icon: FileText, 
-    roles: ['editor', 'admin'],
+  {
+    href: '/documents',
+    label: 'My Documents',
+    icon: FileText,
+    roles: ['editor', 'reviewer', 'admin'], // Added reviewer here so they can see their authored docs too
     subItems: [
       { href: '/documents/new', label: 'Create New', icon: FilePlus, roles: ['editor', 'admin'] },
     ]
   },
-  { href: '/documents/pending-review', label: 'Pending My Review', icon: MailCheck, roles: ['reviewer', 'admin'], badgeCount: 2 }, // Example badge
-  { 
-    href: '/admin', 
-    label: 'Admin Panel', 
-    icon: ShieldAlert, 
+  { href: '/documents?view=pending_my_review', label: 'Pending My Review', icon: MailCheck, roles: ['reviewer', 'admin'], badgeCount: 2 }, // Example badge
+  {
+    href: '/admin',
+    label: 'Admin Panel',
+    icon: ShieldAlert,
     roles: ['admin'],
     subItems: [
       { href: '/admin/documents', label: 'All Documents', icon: UploadCloud, roles: ['admin'] },
@@ -69,7 +70,13 @@ export function SidebarNav() {
       return null;
     }
 
-    const isActive = item.subItems ? pathname.startsWith(item.href) : pathname === item.href;
+    // For precise active state, compare full href, especially for items with query params
+    const isActive = item.subItems
+        ? pathname.startsWith(item.href.split('?')[0]) // Base path for parent items
+        : pathname === item.href.split('?')[0] && 
+          (item.href.includes('?') ? new URLSearchParams(pathname.split('?')[1]).toString() === new URLSearchParams(item.href.split('?')[1]).toString() : true);
+
+
     const ButtonComponent = isSubItem ? SidebarMenuSubButton : SidebarMenuButton;
     const ItemComponent = isSubItem ? SidebarMenuSubItem : SidebarMenuItem;
 
@@ -84,7 +91,7 @@ export function SidebarNav() {
             )}
           </ButtonComponent>
         </Link>
-        {item.subItems && isActive && (
+        {item.subItems && isActive && ( // isActive check for expanding submenus
           <SidebarMenuSub>
             {item.subItems.map(subItem => renderNavItem(subItem, true))}
           </SidebarMenuSub>
@@ -92,9 +99,13 @@ export function SidebarNav() {
       </ItemComponent>
     );
   };
-  
+
   const renderDocumentStatusNavItem = (item: DocumentStatusNavItem) => {
-    const isActive = pathname === item.href;
+    const currentParams = new URLSearchParams(pathname.split('?')[1]);
+    const itemParams = new URLSearchParams(item.href.split('?')[1]);
+    const isActive = pathname.startsWith(item.href.split('?')[0]) && currentParams.get('status') === itemParams.get('status') && !currentParams.get('view');
+
+
     return (
       <SidebarMenuItem key={item.href}>
         <Link href={item.href} passHref legacyBehavior>
@@ -116,7 +127,7 @@ export function SidebarNav() {
       <SidebarMenu className="flex-1">
         {navItems.map(item => renderNavItem(item))}
       </SidebarMenu>
-      { (user.role === 'editor' || user.role === 'admin') && (
+      { (user.role === 'editor' || user.role === 'admin' || user.role === 'reviewer') && ( // Reviewers might also want to see status filters
         <>
           <SidebarGroup className="mt-auto">
             <SidebarGroupLabel>Document Statuses</SidebarGroupLabel>
