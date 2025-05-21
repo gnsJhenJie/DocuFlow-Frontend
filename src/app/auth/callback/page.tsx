@@ -17,11 +17,14 @@ function OAuthCallbackContent() {
   useEffect(() => {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+
+    console.log('[OAuthCallback] Received query params:', { code, error, errorDescription });
 
     if (error) {
       toast({
-        title: 'OAuth Error',
-        description: `Google authentication failed: ${searchParams.get('error_description') || error}`,
+        title: 'Google OAuth Error',
+        description: `Google authentication failed: ${errorDescription || error}`,
         variant: 'destructive',
       });
       router.push('/login');
@@ -29,31 +32,48 @@ function OAuthCallbackContent() {
     }
 
     if (code && !authLoading) {
+      console.log('[OAuthCallback] Exchanging Google code for token...');
       apiClient.exchangeGoogleCode(code)
         .then(res => {
-          if (res.token && res.user) {
+          console.log('[OAuthCallback] Code exchange response:', res);
+          if (res && res.token && res.user) {
+            toast({
+              title: 'Login Successful',
+              description: `Welcome, ${res.user.name}!`,
+            });
             loginWithTokenAndUser(res.token, res.user);
-            // AuthContext will redirect to '/' or the intended page
+            // AuthContext's loginWithTokenAndUser should handle redirection to '/'
           } else {
-            throw new Error('Token or user data missing in response from /api/auth/google/callback.');
+            console.error('[OAuthCallback] Token or user data missing in response from /api/auth/google/callback.', res);
+            toast({
+              title: 'Login Failed',
+              description: 'Received invalid data from server after Google login. Please try again.',
+              variant: 'destructive',
+            });
+            router.push('/login');
           }
         })
         .catch(err => {
-          console.error('OAuth callback failed during code exchange:', err);
+          console.error('[OAuthCallback] Code exchange API call failed:', err);
+          const errorMessage = err.response?.data?.detail || err.message || 'Failed to exchange OAuth code for token. Please check server logs and ensure backend is running.';
           toast({
             title: 'Login Failed',
-            description: err.message || 'Failed to exchange OAuth code for token.',
+            description: errorMessage,
             variant: 'destructive',
           });
           router.push('/login');
         });
     } else if (!code && !error && !authLoading) {
+      // This case might happen if the page is refreshed or accessed directly without proper params
+      console.warn('[OAuthCallback] Accessed without code or error parameter.');
       toast({
         title: 'Invalid Callback',
-        description: 'OAuth callback was accessed without a code or error parameter.',
+        description: 'OAuth callback was accessed improperly.',
         variant: 'destructive',
       });
       router.push('/login');
+    } else if (authLoading) {
+        console.log('[OAuthCallback] Auth context is loading, waiting...');
     }
   }, [searchParams, loginWithTokenAndUser, router, toast, authLoading]);
 
@@ -61,7 +81,7 @@ function OAuthCallbackContent() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-background">
       <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
       <p className="text-lg text-muted-foreground">
-        Logging in with Google, please wait...
+        Finalizing Google login, please wait...
       </p>
     </div>
   );
