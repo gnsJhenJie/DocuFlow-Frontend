@@ -20,21 +20,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
+// Define a fixed reference point for mock dates to ensure consistency
+const MOCK_HISTORY_REFERENCE_NOW = new Date('2024-07-20T12:00:00Z').getTime();
+
 // Mock history data
 const mockHistory: Record<string, DocumentHistoryEntry[]> = {
     'doc1': [
-        { id: 'hist1-1', timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), action: 'created', userId: 'user2', userName: 'Bob The Builder' },
-        { id: 'hist1-2', timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), action: 'submitted', userId: 'user2', userName: 'Bob The Builder', details: { reviewer: 'Charlie Brown' } },
+        { id: 'hist1-1', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 3 * 24 * 60 * 60 * 1000).toISOString(), action: 'created', userId: 'user2', userName: 'Bob The Builder' },
+        { id: 'hist1-2', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 2 * 24 * 60 * 60 * 1000).toISOString(), action: 'submitted', userId: 'user2', userName: 'Bob The Builder', details: { reviewer: 'Charlie Brown' } },
     ],
     'doc3': [
-        { id: 'hist3-1', timestamp: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), action: 'created', userId: 'user2', userName: 'Bob The Builder' },
-        { id: 'hist3-2', timestamp: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), action: 'submitted', userId: 'user2', userName: 'Bob The Builder', details: { reviewer: 'Alice Wonderland' } },
-        { id: 'hist3-3', timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), action: 'approved', userId: 'user1', userName: 'Alice Wonderland' },
+        { id: 'hist3-1', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 10 * 24 * 60 * 60 * 1000).toISOString(), action: 'created', userId: 'user2', userName: 'Bob The Builder' },
+        { id: 'hist3-2', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 8 * 24 * 60 * 60 * 1000).toISOString(), action: 'submitted', userId: 'user2', userName: 'Bob The Builder', details: { reviewer: 'Alice Wonderland' } },
+        { id: 'hist3-3', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 7 * 24 * 60 * 60 * 1000).toISOString(), action: 'approved', userId: 'user1', userName: 'Alice Wonderland' },
     ],
      'doc4': [
-        { id: 'hist4-1', timestamp: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), action: 'created', userId: 'user1', userName: 'Alice Wonderland' },
-        { id: 'hist4-2', timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), action: 'submitted', userId: 'user1', userName: 'Alice Wonderland', details: { reviewer: 'Charlie Brown' } },
-        { id: 'hist4-3', timestamp: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), action: 'rejected', userId: 'user3', userName: 'Charlie Brown', details: { reason: 'Missing appendix B and figures in section 3 are not up to date.' } },
+        { id: 'hist4-1', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 15 * 24 * 60 * 60 * 1000).toISOString(), action: 'created', userId: 'user1', userName: 'Alice Wonderland' },
+        { id: 'hist4-2', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 7 * 24 * 60 * 60 * 1000).toISOString(), action: 'submitted', userId: 'user1', userName: 'Alice Wonderland', details: { reviewer: 'Charlie Brown' } },
+        { id: 'hist4-3', timestamp: new Date(MOCK_HISTORY_REFERENCE_NOW - 6 * 24 * 60 * 60 * 1000).toISOString(), action: 'rejected', userId: 'user3', userName: 'Charlie Brown', details: { reason: 'Missing appendix B and figures in section 3 are not up to date.' } },
     ]
 };
 
@@ -86,11 +89,11 @@ export default function DocumentDetailPage() {
       ...document,
       ...data,
       status: action === 'save' ? 'draft' : 'pending_review',
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(), // Keep this as current time for updates
       version: document.version + (document.status === 'approved' ? 1 : 0), // Increment version if editing an approved doc
     };
      if (action === 'submit') {
-        updatedDocument.submittedAt = new Date().toISOString();
+        updatedDocument.submittedAt = new Date().toISOString(); // Keep this as current time
         // In real app, assign reviewerId from data.reviewerId
         const reviewer = mockUsers.find(u => u.id === data.reviewerId);
         updatedDocument.reviewerName = reviewer?.name;
@@ -110,8 +113,8 @@ export default function DocumentDetailPage() {
     });
      // Add to history
     const historyEntry: DocumentHistoryEntry = {
-        id: `hist-${Date.now()}`,
-        timestamp: new Date().toISOString(),
+        id: `hist-${Date.now()}`, // This is fine for new entries
+        timestamp: new Date().toISOString(), // Current time for new action
         action: action === 'save' ? `edited (v${updatedDocument.version})` : `resubmitted (v${updatedDocument.version})`,
         userId: user.id,
         userName: user.name,

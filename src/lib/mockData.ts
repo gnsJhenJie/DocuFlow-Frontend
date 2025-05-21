@@ -1,5 +1,8 @@
 import type { User, Document, Role, ReviewStatus } from '@/lib/types';
 
+// Define a fixed reference point for mock dates to ensure consistency
+const MOCK_REFERENCE_NOW = new Date('2024-07-20T12:00:00Z').getTime();
+
 export const mockUsers: User[] = [
   { id: 'user1', email: 'alice@example.com', name: 'Alice Wonderland', role: 'admin', avatarUrl: 'https://placehold.co/100x100.png' },
   { id: 'user2', email: 'bob@example.com', name: 'Bob The Builder', role: 'editor', avatarUrl: 'https://placehold.co/100x100.png' },
@@ -17,9 +20,9 @@ export const mockDocuments: Document[] = [
     reviewerId: 'user3',
     reviewerName: 'Charlie Brown',
     status: 'pending_review' as ReviewStatus,
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(MOCK_REFERENCE_NOW - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(MOCK_REFERENCE_NOW - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    submittedAt: new Date(MOCK_REFERENCE_NOW - 2 * 24 * 60 * 60 * 1000).toISOString(),
     version: 1,
     imageUrl: 'https://placehold.co/600x400.png',
   },
@@ -30,8 +33,8 @@ export const mockDocuments: Document[] = [
     authorId: 'user1',
     authorName: 'Alice Wonderland',
     status: 'draft' as ReviewStatus,
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(MOCK_REFERENCE_NOW - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(MOCK_REFERENCE_NOW - 1 * 24 * 60 * 60 * 1000).toISOString(),
     version: 2,
   },
   {
@@ -43,10 +46,10 @@ export const mockDocuments: Document[] = [
     reviewerId: 'user1',
     reviewerName: 'Alice Wonderland',
     status: 'approved' as ReviewStatus,
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    submittedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-    reviewedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(MOCK_REFERENCE_NOW - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(MOCK_REFERENCE_NOW - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    submittedAt: new Date(MOCK_REFERENCE_NOW - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewedAt: new Date(MOCK_REFERENCE_NOW - 7 * 24 * 60 * 60 * 1000).toISOString(),
     version: 1,
     imageUrl: 'https://placehold.co/600x400.png',
   },
@@ -59,10 +62,10 @@ export const mockDocuments: Document[] = [
     reviewerId: 'user3',
     reviewerName: 'Charlie Brown',
     status: 'rejected' as ReviewStatus,
-    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-    submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    reviewedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(MOCK_REFERENCE_NOW - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(MOCK_REFERENCE_NOW - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    submittedAt: new Date(MOCK_REFERENCE_NOW - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewedAt: new Date(MOCK_REFERENCE_NOW - 6 * 24 * 60 * 60 * 1000).toISOString(),
     rejectionReason: 'Missing appendix B and figures in section 3 are not up to date.',
     version: 1,
   },
