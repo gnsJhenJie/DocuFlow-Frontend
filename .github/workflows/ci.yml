@@ -3,9 +3,9 @@ name: DocuFlow CI
 
 on:
   push:
-    branches: [main, master] # Adjust if your main branch has a different name
+    branches: *
   pull_request:
-    branches: [main, master] # Adjust if your main branch has a different name
+    branches: [main] # Adjust if your main branch has a different name
 
 jobs:
   build-and-lint:
