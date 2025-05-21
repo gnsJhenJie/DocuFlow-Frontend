@@ -1,3 +1,4 @@
+
 # DocuFlow - Document Management System
 
 This is a Next.js starter project for DocuFlow, a document management system, built within Firebase Studio.
@@ -37,26 +38,22 @@ or
 yarn install
 ```
 
-### 3. Environment Variables (Future Firebase Setup)
+### 3. Environment Variables
 
-While the current mock version runs without specific environment variables, for future Firebase integration, you will need to create a `.env.local` file in the root of your project and add your Firebase configuration keys.
+This project is a frontend application. If you connect it to your own custom backend, you will likely need to configure environment variables for API endpoints, authentication keys, or other backend-specific settings.
 
-Example `.env.local`:
+Create a `.env.local` file in the root of your project for these variables. For example:
 
 ```env
-NEXT_PUBLIC_FIREBASE_API_KEY="YOUR_API_KEY"
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="YOUR_AUTH_DOMAIN"
-NEXT_PUBLIC_FIREBASE_PROJECT_ID="YOUR_PROJECT_ID"
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="YOUR_STORAGE_BUCKET"
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="YOUR_MESSAGING_SENDER_ID"
-NEXT_PUBLIC_FIREBASE_APP_ID="YOUR_APP_ID"
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="YOUR_MEASUREMENT_ID" # Optional
+# Example for a custom backend API endpoint
+NEXT_PUBLIC_API_BASE_URL="YOUR_BACKEND_API_ENDPOINT"
+NEXT_PUBLIC_SOME_OTHER_KEY="YOUR_OTHER_CUSTOM_KEY"
 
-# For Genkit with Google AI (Gemini)
+# For Genkit with Google AI (Gemini) - THIS IS STILL NEEDED FOR AI FEATURES
 GOOGLE_API_KEY="YOUR_GOOGLE_API_KEY_FOR_GEMINI"
 ```
 
-**Note**: Obtain these keys from your Firebase project settings in the Firebase console. The `GOOGLE_API_KEY` is for Genkit and should be a Google Generative Language API key.
+**Note**: The `GOOGLE_API_KEY` is for Genkit and should be a Google Generative Language API key if you intend to use the AI features. Other variables will depend on your specific backend implementation. Ensure any variables that need to be accessible in the browser are prefixed with `NEXT_PUBLIC_`.
 
 ### 4. Running the Development Server
 
@@ -195,4 +192,4 @@ To check for code quality and type errors:
 *   React Hook Form (for forms)
 *   Zod (for schema validation)
 
-This `README.md` should give a good overview and clear instructions for running the project.
+This `README.md` should give a good overview and clear instructions for running the project with your own backend.
