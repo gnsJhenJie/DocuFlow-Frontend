@@ -22,7 +22,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        suppressHydrationWarning // Added to address extension-induced hydration errors
+        // Added to address potential hydration errors caused by browser extensions modifying body attributes
+        suppressHydrationWarning={true}
         className={cn(
           'min-h-screen bg-background font-sans antialiased',
           fontSans.variable
