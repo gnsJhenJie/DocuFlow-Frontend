@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/apiClient';
@@ -15,6 +15,8 @@ function OAuthCallbackContent() {
   const { loginWithTokenAndUser, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
+  const exchangedRef = useRef(false);
+
   useEffect(() => {
     console.log('[OAuthCallbackContent] useEffect triggered.');
     const code = searchParams.get('code');
@@ -27,59 +29,30 @@ function OAuthCallbackContent() {
       console.error('[OAuthCallback] Google OAuth Error:', errorDescription || error);
       toast({
         title: 'Google OAuth Error',
-        description: `Google authentication failed: ${errorDescription || error}`,
+        description: errorDescription || error,
         variant: 'destructive',
       });
-      router.push('/login');
+      router.replace('/login');
       return;
     }
 
-    // Only proceed if code exists and auth context is not in the middle of its own loading (e.g. initial token check)
-    if (code && !authLoading) {
-      console.log('[OAuthCallback] Exchanging Google code for token...');
+    if (code && !authLoading && !exchangedRef.current) {
+      exchangedRef.current = true;                  // 先鎖住
       apiClient.exchangeGoogleCode(code)
         .then(res => {
-          console.log('[OAuthCallback] Code exchange response from backend:', res);
-          if (res && res.token && res.user) {
-            toast({
-              title: 'Login Successful',
-              description: `Welcome, ${res.user.name}! Processing login...`,
-            });
-            // loginWithTokenAndUser will set token, user, and then redirect
-            loginWithTokenAndUser(res.token, res.user);
-          } else {
-            console.error('[OAuthCallback] Token or user data missing in response from /api/auth/google/callback.', res);
-            toast({
-              title: 'Login Failed',
-              description: 'Received invalid data from server after Google login. Please try again.',
-              variant: 'destructive',
-            });
-            router.push('/login');
-          }
+          loginWithTokenAndUser(res.token, res.user);
+          /** 成功後直接跳到首頁 (或你想要的路由) */
+          router.replace('/');                      // ← code 被移除，之後不會再觸發
         })
         .catch(err => {
-          console.error('[OAuthCallback] Code exchange API call failed:', err);
-          const errorMessage = err.response?.data?.detail || err.message || 'Failed to exchange OAuth code for token. Please check server logs and ensure backend is running.';
+          exchangedRef.current = false;            // 失敗才解鎖
           toast({
             title: 'Login Failed',
-            description: errorMessage,
+            description: err.message,
             variant: 'destructive',
           });
-          router.push('/login');
+          router.replace('/login');
         });
-    } else if (!code && !error && !authLoading) {
-      console.warn('[OAuthCallback] Accessed without code or error parameter.');
-      toast({
-        title: 'Invalid Callback',
-        description: 'OAuth callback was accessed improperly.',
-        variant: 'destructive',
-      });
-      router.push('/login');
-    } else if (authLoading) {
-        console.log('[OAuthCallback] Auth context is loading, waiting for it to complete before processing code...');
-        // Do nothing, useEffect will re-run when authLoading changes
-    } else if (!code && !error && authLoading) {
-        console.log('[OAuthCallback] No code/error, and auth context is loading. Waiting...');
     }
   }, [searchParams, loginWithTokenAndUser, router, toast, authLoading]); // Added authLoading to dependency array
 
