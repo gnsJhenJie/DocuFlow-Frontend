@@ -31,9 +31,10 @@ export interface Document {
 
 export interface DocumentHistoryEntry {
   id: string;
+  document_id: string;
   timestamp: string;
   action: string;
-  userId: string;
+  actor_id: string;
   userName: string;
   details?: Record<string, any>;
 }

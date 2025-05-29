@@ -319,11 +319,7 @@ export default function DocumentDetailPage() {
                     </div>
                     {entry.details && (
                       <div className="mt-1.5 pl-6 text-xs text-muted-foreground">
-                        {Object.entries(entry.details).map(([key, value]) => (
-                          <p key={key}>
-                            <strong>{key.charAt(0).toUpperCase() + key.slice(1)}:</strong> {String(value)}
-                          </p>
-                        ))}
+                        {entry.details}
                       </div>
                     )}
                   </li>
