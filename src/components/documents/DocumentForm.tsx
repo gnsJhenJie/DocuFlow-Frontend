@@ -184,6 +184,7 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
   const saveAction: 'save_draft' = 'save_draft';
   const submitAction: 'submit_for_review' | 'resubmit_for_review' = formMode === 'create' ? 'submit_for_review' : 'resubmit_for_review';
 
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
@@ -241,8 +242,8 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
           <div>
             <Label htmlFor="coverImageUpload">Cover Image (Optional)</Label>
             <div className="mt-1 flex items-center gap-4">
-              <input id="coverImageUpload" type="file" accept="image/*" onChange={handleCoverImageChange} className="hidden" />
-              <Button type="button" variant="outline" onClick={() => document.getElementById('coverImageUpload')?.click()} disabled={isUploadingCover}>
+              <input ref={coverImageInputRef} id="coverImageUpload" type="file" accept="image/*" onChange={handleCoverImageChange} className="hidden" />
+              <Button type="button" variant="outline" onClick={() => coverImageInputRef.current?.click()} disabled={isUploadingCover}>
                 {isUploadingCover ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
                 Upload Cover
               </Button>
