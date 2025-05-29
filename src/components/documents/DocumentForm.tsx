@@ -209,14 +209,23 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
                 Insert Image
               </Button>
             </div>
-            <Textarea
-              id="content"
-              {...register('content')}
-              ref={contentTextAreaRef}
-              placeholder="Write your document content here (supports Markdown and image drop)..."
-              className="mt-1 min-h-[200px]"
-              onDrop={handleContentDrop}
-              onDragOver={handleContentDragOver}
+            <Controller
+              name="content"
+              control={control}
+              rules={{
+                required: 'Content is required',
+                validate: value =>
+                  value.trim().length >= 10 || 'Content must be at least 10 characters.'
+              }}
+              render={({ field }) => (
+                <Textarea
+                  // label="Content"
+                  value={field.value}
+                  onChange={field.onChange}
+                  // error={!!errors.content}
+                  // helperText={errors.content?.message}
+                />
+              )}
             />
             {errors.content && <p className="text-sm text-destructive mt-1">{errors.content.message}</p>}
             <p className="mt-1 text-xs text-muted-foreground flex items-center">
