@@ -100,33 +100,24 @@ export default function DocumentsPage() {
     setCurrentPage(initialPage);
   }, []); // Run only once on mount
 
- useEffect(() => {
-    // This effect updates URL when local filter states change
-    const params = new URLSearchParams();
-    if (searchTerm) params.set('searchTerm', searchTerm);
-    if (statusFilter !== 'all') params.set('status', statusFilter);
-    else params.delete('status');
-    if (sortBy !== 'updatedAt_desc') params.set('sortBy', sortBy);
-    else params.delete('sortBy');
-    if (viewFilter) params.set('view', viewFilter);
-    else params.delete('view');
-    if (currentPage > 1) params.set('page', String(currentPage));
-    else params.delete('page');
-    
-    // Conditional status filter based on view
-    if (viewFilter === 'pending_my_review') {
-      // If view is pending_my_review, status is implied. Remove explicit status from URL.
-      params.delete('status');
-      if(statusFilter !== 'pending_review') setStatusFilter('pending_review'); // Keep local state consistent
-    }
+useEffect(() => {
+  // 當 URL 查詢字串改變時，同步到本地 state 然後 fetch
+  const params = searchParams;
+  const newStatus = (params.get('status') as ReviewStatus) || 'all';
+  const newView = params.get('view');
+  const newSearch = params.get('searchTerm') || '';
+  const newSort = params.get('sortBy') || 'updatedAt_desc';
+  const newPage = parseInt(params.get('page') || '1', 10);
 
-    // Avoid pushing the same URL state if only local state changed but query params effectively didn't
-    if (params.toString() !== searchParams.toString().split('?')[1]) {
-         router.push(`/documents?${params.toString()}`, { scroll: false });
-    }
-    // Fetch documents whenever these primary dependencies change
-    fetchDocuments();
-  }, [fetchDocuments, searchTerm, statusFilter, sortBy, viewFilter, currentPage, router]); // Removed searchParams from deps
+  if (newStatus !== statusFilter) setStatusFilter(newStatus);
+  if (newView !== viewFilter) setViewFilter(newView);
+  if (newSearch !== searchTerm) setSearchTerm(newSearch);
+  if (newSort !== sortBy) setSortBy(newSort);
+  if (newPage !== currentPage) setCurrentPage(newPage);
+
+  fetchDocuments();
+}, [searchParams, fetchDocuments]);
+
 
 
   if (authLoading) {
