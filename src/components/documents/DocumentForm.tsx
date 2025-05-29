@@ -36,7 +36,7 @@ interface DocumentFormProps {
 }
 
 export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMode }: DocumentFormProps) {
-  const [imagePreview, setImagePreview] = useState<string | null>(document?.imageUrl || null);
+  const [imagePreview, setImagePreview] = useState<string | null>(document?.image_url || null);
   const [reviewers, setReviewers] = useState<User[]>([]);
   const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
@@ -52,8 +52,8 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
     defaultValues: {
       title: document?.title || '',
       content: document?.content || '',
-      imageUrl: document?.imageUrl || '',
-      reviewerId: document?.reviewerId || '', // Keep as string, convert for API
+      imageUrl: document?.image_url || '',
+      reviewerId: document?.reviewer_id || '', // Keep as string, convert for API
     },
   });
 
@@ -62,10 +62,10 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
       reset({
         title: document.title,
         content: document.content,
-        imageUrl: document.imageUrl || '',
-        reviewerId: document.reviewerId || '',
+        imageUrl: document.image_url || '',
+        reviewerId: document.reviewer_id || '',
       });
-      setImagePreview(document.imageUrl || null);
+      setImagePreview(document.image_url || null);
     }
   }, [document, reset]);
 

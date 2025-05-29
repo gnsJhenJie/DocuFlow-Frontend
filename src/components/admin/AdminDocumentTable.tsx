@@ -50,7 +50,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
     try {
       const fetchedReviewers = await apiClient.getReviewers();
       // Filter out the document's current author from the list of potential new reviewers
-      setPotentialReviewers(fetchedReviewers.filter(rev => rev.id !== selectedDocument?.authorId));
+      setPotentialReviewers(fetchedReviewers.filter(rev => rev.id !== selectedDocument?.author_id));
     } catch (error: any) {
       toast({ title: "Error fetching reviewers", description: error.message, variant: "destructive" });
     } finally {
@@ -68,7 +68,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
 
   const handleOpenReassignModal = (doc: Document) => {
     setSelectedDocument(doc);
-    setNewReviewerId(doc.reviewerId || ''); // Pre-select current reviewer if any
+    setNewReviewerId(doc.reviewer_id || ''); // Pre-select current reviewer if any
     setShowReassignModal(true);
   };
 
@@ -149,13 +149,13 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
                 <TableCell>
                   <DocumentStatusBadge status={doc.status} />
                 </TableCell>
-                <TableCell>{doc.authorName}</TableCell>
-                <TableCell>{doc.reviewerName || 'N/A'}</TableCell>
+                <TableCell>{doc.author_name}</TableCell>
+                <TableCell>{doc.reviewer_name || 'N/A'}</TableCell>
                 <TableCell>
-                  {isClient ? formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true }) : <Skeleton className="h-4 w-24" />}
+                  {isClient ? formatDistanceToNow(new Date(doc.updated_at), { addSuffix: true }) : <Skeleton className="h-4 w-24" />}
                 </TableCell>
                 <TableCell>
-                  {isClient ? (doc.submittedAt ? format(new Date(doc.submittedAt), 'PP') : 'N/A') : <Skeleton className="h-4 w-20" />}
+                  {isClient ? (doc.submitted_at ? format(new Date(doc.submitted_at), 'PP') : 'N/A') : <Skeleton className="h-4 w-20" />}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>

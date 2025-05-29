@@ -29,10 +29,10 @@ export function DocumentCard({ document, currentUserRole }: DocumentCardProps) {
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 rounded-lg">
-      {document.imageUrl && (
+      {document.image_url && (
         <div className="relative h-48 w-full">
           <Image 
-            src={document.imageUrl} 
+            src={document.image_url} 
             alt={document.title} 
             layout="fill" 
             objectFit="cover" 
@@ -48,8 +48,8 @@ export function DocumentCard({ document, currentUserRole }: DocumentCardProps) {
           <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-2" />
         </div>
         <CardDescription className="text-xs">
-          By {document.authorName} &bull; Last updated: {' '}
-          {isClient ? formatDistanceToNow(new Date(document.updatedAt), { addSuffix: true }) : <Skeleton className="h-3 w-24 inline-block" />}
+          By {document.author_name} &bull; Last updated: {' '}
+          {isClient ? formatDistanceToNow(new Date(document.updated_at), { addSuffix: true }) : <Skeleton className="h-3 w-24 inline-block" />}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow pb-3">

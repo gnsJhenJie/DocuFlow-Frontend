@@ -15,17 +15,17 @@ export interface Document {
   id: string; // Assuming backend provides string IDs for documents
   title: string;
   content: string;
-  imageUrl?: string;
-  authorId: string; // User ID
-  authorName: string;
-  reviewerId?: string; // User ID - will be string in frontend state
-  reviewerName?: string;
+  image_url?: string;
+  author_id: string; // User ID
+  author_name: string;
+  reviewer_id?: string; // User ID - will be string in frontend state
+  reviewer_name?: string;
   status: ReviewStatus;
-  createdAt: string;
-  updatedAt: string;
-  submittedAt?: string;
-  reviewedAt?: string;
-  rejectionReason?: string;
+  created_at: string;
+  updated_at: string;
+  submitted_at?: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
   version: number;
 }
 
