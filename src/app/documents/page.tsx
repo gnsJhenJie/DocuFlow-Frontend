@@ -44,7 +44,7 @@ export default function DocumentsPage() {
   const [statusFilter, setStatusFilter] = useState<ReviewStatus | 'all'>('all');
   const [sortBy, setSortBy] = useState('updatedAt_desc');
   const [viewFilter, setViewFilter] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false); // ✅ 關鍵 state
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     const newSearchTerm = searchParams.get('searchTerm') || '';
@@ -52,15 +52,18 @@ export default function DocumentsPage() {
     const newView = searchParams.get('view');
     const newPage = parseInt(searchParams.get('page') || '1', 10);
     const rawStatus = (searchParams.get('status') as ReviewStatus | 'all') || 'all';
-    const effectiveStatus = newView === 'pending_my_review' ? 'pending_review' : rawStatus;
+
+    const effectiveStatus =
+      newView === 'pending_my_review' ? 'pending_review' :
+      newView === 'my_documents' ? 'all' :
+      rawStatus;
 
     setSearchTerm(newSearchTerm);
     setSortBy(newSortBy);
     setViewFilter(newView);
     setStatusFilter(effectiveStatus);
     setCurrentPage(newPage);
-
-    setIsInitialized(true); // ✅ 只初始化一次
+    setIsInitialized(true);
   }, [searchParams]);
 
   const buildApiParams = useCallback(() => {
@@ -69,14 +72,18 @@ export default function DocumentsPage() {
     params.append('limit', String(DOCUMENTS_PER_PAGE));
     if (searchTerm) params.append('searchTerm', searchTerm);
     if (sortBy) params.append('sortBy', sortBy);
+
     if (viewFilter === 'pending_my_review' && user) {
-      params.append('view', 'pending_my_review');
+      params.set('view', 'pending_my_review');
+      params.set('reviewerId', user.id);
+      params.set('status', 'pending_review');
+    } else if (viewFilter === 'my_documents' && user) {
+      params.set('view', 'my_documents');
+      params.set('authorId', user.id);
     } else if (statusFilter !== 'all') {
-      params.append('status', statusFilter);
+      params.set('status', statusFilter);
     }
-    if (user && user.role === 'editor' && !viewFilter) {
-      params.append('authorId', user.id);
-    }
+
     return params;
   }, [currentPage, searchTerm, sortBy, statusFilter, viewFilter, user]);
 
@@ -103,26 +110,24 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     if (!isInitialized) return;
-
     const params = new URLSearchParams();
     if (searchTerm) params.set('searchTerm', searchTerm);
     if (viewFilter === 'pending_my_review') {
       params.set('view', 'pending_my_review');
+    } else if (viewFilter === 'my_documents') {
+      params.set('view', 'my_documents');
     } else {
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (viewFilter) params.set('view', viewFilter);
     }
-
     if (sortBy !== 'updatedAt_desc') params.set('sortBy', sortBy);
     if (currentPage > 1) params.set('page', String(currentPage));
 
     const finalQuery = params.toString();
     const currentQuery = searchParams.toString();
-
     if (finalQuery !== currentQuery) {
       router.push(`/documents?${finalQuery}`, { scroll: false });
     }
-
     fetchDocuments();
   }, [fetchDocuments, searchTerm, statusFilter, sortBy, viewFilter, currentPage, isInitialized]);
 
@@ -147,11 +152,7 @@ export default function DocumentsPage() {
     const newStatus = value as ReviewStatus | 'all';
     setStatusFilter(newStatus);
     setCurrentPage(1);
-    if (
-      viewFilter &&
-      newStatus !== 'pending_review' &&
-      viewFilter === 'pending_my_review'
-    ) {
+    if (viewFilter === 'pending_my_review' && newStatus !== 'pending_review') {
       setViewFilter(null);
     }
   };
@@ -163,11 +164,11 @@ export default function DocumentsPage() {
           <h1 className="text-3xl font-bold tracking-tight">
             {viewFilter === 'pending_my_review'
               ? 'Documents Pending Your Review'
+              : viewFilter === 'my_documents'
+              ? 'My Documents'
               : statusFilter !== 'all'
-              ? `${statusFilter
-                  .replace('_', ' ')
-                  .replace(/\b\w/g, (l) => l.toUpperCase())} Documents`
-              : 'Your Documents'}
+              ? `${statusFilter.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())} Documents`
+              : 'All Documents'}
           </h1>
           <p className="text-muted-foreground">
             Manage, review, and track all your documents.
@@ -207,7 +208,7 @@ export default function DocumentsPage() {
             <Select
               value={statusFilter}
               onValueChange={handleStatusFilterChange}
-              disabled={viewFilter === 'pending_my_review'}
+              disabled={viewFilter === 'pending_my_review' || viewFilter === 'my_documents'}
             >
               <SelectTrigger id="statusFilter">
                 <SelectValue placeholder="Filter by status" />
