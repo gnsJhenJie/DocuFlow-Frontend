@@ -9,6 +9,9 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/apiClient';
 import type { Document } from '@/lib/types';
+import { format } from 'date-fns';
+import { enUS } from 'date-fns/locale';
+
 
 interface ActivityItem {
   id: string;
@@ -84,14 +87,7 @@ export default function DashboardPage() {
           .map((doc: Document, index: number): ActivityItem => ({
             id: `doc-activity-${doc.id}-${index}`,
             text: `Document "${doc.title}" was recently updated (Status: ${doc.status}).`,
-            timestamp: new Date(doc.updated_at).toLocaleString('en-US', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            }),
+            timestamp: format(new Date(doc.updated_at), "MMMM do, yyyy h:mm a", { locale: enUS }),
             imageUrl: doc.image_url,
             imageAlt: doc.title,
             dataAiHint: "document icon",
