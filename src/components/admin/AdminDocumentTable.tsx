@@ -184,7 +184,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
                        <DropdownMenuItem 
                          onClick={() => handleDeleteDocument(doc.id, doc.title)}
                          className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                         disabled={doc.status !== 'draft'} // Per API spec: Admin can delete any draft. Authors also.
+                        //  disabled={(doc.status === 'pending_review')} // Per API spec: Admin can delete any draft. Authors also.
                        >
                         <Trash2 className="mr-2 h-4 w-4" /> Delete Document
                       </DropdownMenuItem>

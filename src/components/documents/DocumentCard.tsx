@@ -2,30 +2,59 @@
 'use client'; // Ensure this is a client component
 
 import { useState, useEffect } from 'react'; // Import hooks
+import { useRouter } from 'next/navigation';
+import { apiClient } from '@/lib/apiClient';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Document } from '@/lib/types';
-import { FileText, Edit3, Eye, ShieldCheck, MessageSquareWarning } from 'lucide-react';
+import { FileText, Edit3, Eye, ShieldCheck, Trash2, MessageSquareWarning } from 'lucide-react';
 import { DocumentStatusBadge } from './DocumentStatusBadge';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
+import { toast } from '@/hooks/use-toast';
 
 interface DocumentCardProps {
   document: Document;
   currentUserRole: 'admin' | 'editor' | 'reviewer' | 'viewer'; // To control actions
+  currentUserId: string;
 }
 
-export function DocumentCard({ document, currentUserRole }: DocumentCardProps) {
+export function DocumentCard({ document, currentUserRole, currentUserId }: DocumentCardProps) {
   const [isClient, setIsClient] = useState(false); // State for client-side rendering
 
   useEffect(() => {
     setIsClient(true); // Set to true after component mounts
   }, []);
 
+  const isAuthor = String(document.authorId) === String(currentUserId);
+
   const canEdit = (currentUserRole !== 'viewer') && (document.status === 'draft' || document.status === 'rejected');
   const canReview = (currentUserRole === 'reviewer' || currentUserRole === 'admin') && document.status === 'pending_review';
+  const canDelete =
+    currentUserRole === 'admin'
+      ? (document.status === 'approved' ||
+         (isAuthor && ['draft', 'rejected'].includes(document.status)))
+      : (['editor', 'reviewer'].includes(currentUserRole) &&
+         isAuthor &&
+         ['draft', 'rejected'].includes(document.status));
+  
+  const router = useRouter();
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) return;
+    try {
+      await apiClient.deleteDocument(document.id);
+      toast({
+        title: 'Document Deleted',
+        description: `"${document.title}" has been successfully deleted.`,
+        variant: 'success',
+      });
+      window.location.reload();
+    } catch (err: any) {
+      alert(`Error Deleting Document: ${err.message}`);
+    }
+  };
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 rounded-lg">
@@ -78,6 +107,15 @@ export function DocumentCard({ document, currentUserRole }: DocumentCardProps) {
                 <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Review
               </Button>
             </Link>
+          )}
+          {canDelete && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDelete}
+            >
+              <Trash2 className="mr-0.2 h-4 w-4"/>
+            </Button>
           )}
         </div>
       </CardFooter>

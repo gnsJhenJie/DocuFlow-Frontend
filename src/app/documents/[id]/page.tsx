@@ -208,6 +208,12 @@ export default function DocumentDetailPage() {
     (user.role === 'admin' || document.reviewerId === Number(user.id)) &&
     document.status === 'pending_review';
   
+  const canDelete =
+    user.role !== 'viewer' && 
+    document.status !== 'pending_review' &&
+    ((document.status === 'approved' && user.role === 'admin') ||
+      (document.status === 'draft' && document.authorId === Number(user.id)));
+  
     if (isEditing && canEdit) {
     return (
       <DocumentForm
