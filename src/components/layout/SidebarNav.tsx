@@ -31,6 +31,7 @@ import type { User } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { apiClient } from '@/lib/apiClient';
+import { clearAllModuleContexts } from 'next/dist/server/lib/render-server';
 
 interface NavItem {
   href: string;
@@ -74,6 +75,7 @@ const cachedCounts: Record<string, DynamicCounts> = {};
 export function SidebarNav() {
   const pathname = usePathname();
   const currentSearchParams = useSearchParams();
+  const searchParamsString = currentSearchParams.toString();
   const { user, loading: authLoading } = useAuth();
   const [dynamicCounts, setDynamicCounts] = useState<DynamicCounts>({
     pendingReviewCount: 0,
@@ -93,45 +95,29 @@ export function SidebarNav() {
       setLoadingCounts(true);
 
       try {
-        const counts: Partial<DynamicCounts> = {};
+        const params = new URLSearchParams({ limit: '999' });
+        const { documents: allDocs } = await apiClient.getDocuments(params);
 
-        const statuses: [keyof DynamicCounts, string][] = [
-          ['draftCount', 'draft'],
-          ['pendingReviewCount', 'pending_review'],
-          ['approvedCount', 'approved'],
-          ['rejectedCount', 'rejected'],
-        ];
+        const counts: DynamicCounts = {
+          draftCount: 0,
+          pendingReviewCount: 0,
+          approvedCount: 0,
+          rejectedCount: 0,
+          pendingMyReviewCount: 0,
+          myDocumentsCount: 0,
+          allDocumentsCount: allDocs.length,
+        };
 
-        for (const [key, status] of statuses) {
-          const params = new URLSearchParams();
-          params.set('status', status);
-          params.set('limit', '999');
-          const res = await apiClient.getDocuments(params);
-          counts[key] = res.documents.length;
+        for (const doc of allDocs) {
+          if (doc.status === 'draft') counts.draftCount++;
+          if (doc.status === 'pending_review') counts.pendingReviewCount++;
+          if (doc.status === 'approved') counts.approvedCount++;
+          if (doc.status === 'rejected') counts.rejectedCount++;
+          if (doc.reviewer_id === Number(user.id) && doc.status === 'pending_review') counts.pendingMyReviewCount++;
+          if (doc.author_id === Number(user.id)) counts.myDocumentsCount++;
         }
 
-        if (user.role === 'reviewer' || user.role === 'admin') {
-          const params = new URLSearchParams();
-          params.set('view', 'pending_my_review');
-          if (user.role === 'reviewer') params.set('reviewerId', user.id);
-          params.set('limit', '999');
-          const res = await apiClient.getDocuments(params);
-          counts['pendingMyReviewCount'] = res.documents.length;
-        }
-
-        const myDocsParams = new URLSearchParams();
-        myDocsParams.set('view', 'my_documents');
-        myDocsParams.set('authorId', user.id);
-        myDocsParams.set('limit', '999');
-        const myDocsRes = await apiClient.getDocuments(myDocsParams);
-        counts['myDocumentsCount'] = myDocsRes.documents.length;
-
-        const allDocsParams = new URLSearchParams();
-        allDocsParams.set('limit', '999');
-        const allDocsRes = await apiClient.getDocuments(allDocsParams);
-        counts['allDocumentsCount'] = allDocsRes.documents.length;
-
-        setDynamicCounts((prev) => ({ ...prev, ...counts as DynamicCounts }));
+        setDynamicCounts(counts);
       } catch (err) {
         console.error('Sidebar counts fetch error:', err);
       } finally {
@@ -140,7 +126,7 @@ export function SidebarNav() {
     };
 
     if (user && !authLoading) fetchCounts();
-  }, [user, authLoading, pathname, currentSearchParams.toString()]);
+  }, [user, authLoading, pathname, searchParamsString]);
 
 
   const renderNavItem = (item: NavItem) => {
