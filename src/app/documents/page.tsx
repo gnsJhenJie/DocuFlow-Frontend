@@ -46,6 +46,7 @@ export default function DocumentsPage() {
   const [viewFilter, setViewFilter] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // 1) 解析 URL，保留 my_documents 的 status
   useEffect(() => {
     const newSearchTerm = searchParams.get('searchTerm') || '';
     const newSortBy = searchParams.get('sortBy') || 'updatedAt_desc';
@@ -53,10 +54,11 @@ export default function DocumentsPage() {
     const newPage = parseInt(searchParams.get('page') || '1', 10);
     const rawStatus = (searchParams.get('status') as ReviewStatus | 'all') || 'all';
 
-    const effectiveStatus =
-      newView === 'pending_my_review' ? 'pending_review' :
-      newView === 'my_documents' ? 'all' :
-      rawStatus;
+    // 默认用 URL 里的 status，pending_my_review 特殊映射
+    let effectiveStatus = rawStatus;
+    if (newView === 'pending_my_review') {
+      effectiveStatus = 'pending_review';
+    }
 
     setSearchTerm(newSearchTerm);
     setSortBy(newSortBy);
@@ -66,6 +68,7 @@ export default function DocumentsPage() {
     setIsInitialized(true);
   }, [searchParams]);
 
+  // 2) 构建 API 请求参数，my_documents 分支也带上 status
   const buildApiParams = useCallback(() => {
     const params = new URLSearchParams();
     params.append('page', String(currentPage));
@@ -80,6 +83,9 @@ export default function DocumentsPage() {
     } else if (viewFilter === 'my_documents' && user) {
       params.set('view', 'my_documents');
       params.set('authorId', user.id);
+      if (statusFilter !== 'all') {
+        params.set('status', statusFilter);
+      }
     } else if (statusFilter !== 'all') {
       params.set('status', statusFilter);
     }
@@ -108,6 +114,7 @@ export default function DocumentsPage() {
     }
   }, [user, authLoading, buildApiParams, toast]);
 
+  // 同步 URL 并拉数据
   useEffect(() => {
     if (!isInitialized) return;
     const params = new URLSearchParams();
@@ -115,6 +122,7 @@ export default function DocumentsPage() {
     if (viewFilter === 'pending_my_review') {
       params.set('view', 'pending_my_review');
     } else if (viewFilter === 'my_documents') {
+      if (statusFilter !== 'all') params.set('status', statusFilter);
       params.set('view', 'my_documents');
     } else {
       if (statusFilter !== 'all') params.set('status', statusFilter);
@@ -208,7 +216,7 @@ export default function DocumentsPage() {
             <Select
               value={statusFilter}
               onValueChange={handleStatusFilterChange}
-              disabled={viewFilter === 'pending_my_review' || viewFilter === 'my_documents'}
+              disabled={viewFilter === 'pending_my_review'}
             >
               <SelectTrigger id="statusFilter">
                 <SelectValue placeholder="Filter by status" />
