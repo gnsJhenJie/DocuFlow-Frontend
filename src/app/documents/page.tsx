@@ -1,19 +1,32 @@
-// src/app/documents/page.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { DocumentCard } from '@/components/documents/DocumentCard';
-import type { Document, ReviewStatus, PaginatedDocumentsResponse } from '@/lib/types';
+import type {
+  Document,
+  ReviewStatus,
+  PaginatedDocumentsResponse,
+} from '@/lib/types';
 import Link from 'next/link';
-import { PlusCircle, Search, Filter, Loader2 } from 'lucide-react';
+import {
+  PlusCircle,
+  Search,
+  Filter,
+  Loader2,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/apiClient';
 import { useToast } from '@/hooks/use-toast';
-
 
 const DOCUMENTS_PER_PAGE = 9;
 
@@ -27,47 +40,43 @@ export default function DocumentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-
   const [searchTerm, setSearchTerm] = useState('');
-  const statusFromUrl = searchParams.get('status') as ReviewStatus | 'all' || 'all';
-  const [statusFilter, setStatusFilter] = useState<ReviewStatus | 'all'>(statusFromUrl);
-
+  const [statusFilter, setStatusFilter] = useState<ReviewStatus | 'all'>('all');
   const [sortBy, setSortBy] = useState('updatedAt_desc');
   const [viewFilter, setViewFilter] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false); // ✅ 關鍵 state
 
   useEffect(() => {
     const newSearchTerm = searchParams.get('searchTerm') || '';
-    const newStatus =
-      (searchParams.get('status') as ReviewStatus | 'all') || 'all';
     const newSortBy = searchParams.get('sortBy') || 'updatedAt_desc';
     const newView = searchParams.get('view');
     const newPage = parseInt(searchParams.get('page') || '1', 10);
+    const rawStatus = (searchParams.get('status') as ReviewStatus | 'all') || 'all';
+    const effectiveStatus = newView === 'pending_my_review' ? 'pending_review' : rawStatus;
 
-    if (newSearchTerm !== searchTerm) setSearchTerm(newSearchTerm);
-    if (newStatus !== statusFilter) setStatusFilter(newStatus);
-    if (newSortBy !== sortBy) setSortBy(newSortBy);
-    if (newView !== viewFilter) setViewFilter(newView);
-    if (newPage !== currentPage) setCurrentPage(newPage);
+    setSearchTerm(newSearchTerm);
+    setSortBy(newSortBy);
+    setViewFilter(newView);
+    setStatusFilter(effectiveStatus);
+    setCurrentPage(newPage);
+
+    setIsInitialized(true); // ✅ 只初始化一次
   }, [searchParams]);
 
   const buildApiParams = useCallback(() => {
     const params = new URLSearchParams();
     params.append('page', String(currentPage));
     params.append('limit', String(DOCUMENTS_PER_PAGE));
-
     if (searchTerm) params.append('searchTerm', searchTerm);
     if (sortBy) params.append('sortBy', sortBy);
-
     if (viewFilter === 'pending_my_review' && user) {
       params.append('view', 'pending_my_review');
     } else if (statusFilter !== 'all') {
       params.append('status', statusFilter);
     }
-
     if (user && user.role === 'editor' && !viewFilter) {
       params.append('authorId', user.id);
     }
-
     return params;
   }, [currentPage, searchTerm, sortBy, statusFilter, viewFilter, user]);
 
@@ -93,28 +102,29 @@ export default function DocumentsPage() {
   }, [user, authLoading, buildApiParams, toast]);
 
   useEffect(() => {
+    if (!isInitialized) return;
+
     const params = new URLSearchParams();
     if (searchTerm) params.set('searchTerm', searchTerm);
-    if (statusFilter !== 'all') params.set('status', statusFilter);
-    else params.delete('status');
-    if (sortBy !== 'updatedAt_desc') params.set('sortBy', sortBy);
-    else params.delete('sortBy');
-    if (viewFilter) params.set('view', viewFilter);
-    else params.delete('view');
-    if (currentPage > 1) params.set('page', String(currentPage));
-    else params.delete('page');
-
     if (viewFilter === 'pending_my_review') {
-      params.delete('status');
-      if (statusFilter !== 'pending_review') setStatusFilter('pending_review');
+      params.set('view', 'pending_my_review');
+    } else {
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (viewFilter) params.set('view', viewFilter);
     }
 
-    if (params.toString() !== searchParams.toString().split('?')[1]) {
-      router.push(`/documents?${params.toString()}`, { scroll: false });
+    if (sortBy !== 'updatedAt_desc') params.set('sortBy', sortBy);
+    if (currentPage > 1) params.set('page', String(currentPage));
+
+    const finalQuery = params.toString();
+    const currentQuery = searchParams.toString();
+
+    if (finalQuery !== currentQuery) {
+      router.push(`/documents?${finalQuery}`, { scroll: false });
     }
+
     fetchDocuments();
-  }, [fetchDocuments, searchTerm, statusFilter, sortBy, viewFilter, currentPage, router]);
-  
+  }, [fetchDocuments, searchTerm, statusFilter, sortBy, viewFilter, currentPage, isInitialized]);
 
   if (authLoading) {
     return (
@@ -124,6 +134,7 @@ export default function DocumentsPage() {
       </div>
     );
   }
+
   if (!user) {
     return <p className="text-center mt-8">Please log in to view documents.</p>;
   }
