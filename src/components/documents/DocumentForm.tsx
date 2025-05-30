@@ -279,7 +279,7 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
                         {isLoadingReviewers && <SelectItem value="loading" disabled>Loading...</SelectItem>}
                         {!isLoadingReviewers && reviewers.length === 0 && <SelectItem value="no_reviewers" disabled>No reviewers available</SelectItem>}
                         {reviewers.map(rev => (
-                          <SelectItem key={rev.id} value={rev.id}>
+                          <SelectItem key={rev.id} value={String(rev.id)}>
                             {rev.name} ({rev.email})
                           </SelectItem>
                         ))}
