@@ -1,29 +1,25 @@
-
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, CheckCircle2, Clock, PlusCircle, Loader2 } from 'lucide-react';
+import { FileText, CheckCircle2, Clock, PlusCircle, Loader2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/apiClient'; // Assuming apiClient exists
-import type { Document } from '@/lib/types'; // Assuming types exist
-
+import { apiClient } from '@/lib/apiClient';
+import type { Document } from '@/lib/types';
 
 interface ActivityItem {
   id: string;
   text: string;
-  timestamp?: string; // Should be fetched or generated based on real data
+  timestamp?: string;
   imageUrl?: string;
   imageAlt?: string;
   dataAiHint?: string;
-  link?: string; // Optional link for activity
+  link?: string;
 }
 
-// Sample recent activities - this should ideally come from a backend API
-// For now, we'll keep it static or derive from latest documents if possible
 const staticRecentActivities: ActivityItem[] = [
   {
     id: 'activity1',
@@ -48,6 +44,13 @@ const staticRecentActivities: ActivityItem[] = [
   },
 ];
 
+function getIconFromStatus(text: string) {
+  if (text.includes('approved')) return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+  if (text.includes('pending_review')) return <Clock className="h-5 w-5 text-yellow-500" />;
+  if (text.includes('draft')) return <FileText className="h-5 w-5 text-blue-500" />;
+  if (text.includes('rejected')) return <XCircle className="h-5 w-5 text-red-500" />;
+  return <FileText className="h-5 w-5 text-muted-foreground" />;
+}
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -65,36 +68,38 @@ export default function DashboardPage() {
       if (!user) return;
       setLoadingStats(true);
       try {
-        // Fetch a batch of documents to derive stats.
-        // Ideally, backend provides dedicated stat endpoints.
-        const params = new URLSearchParams({ limit: "200" }); // Fetch more docs for stats
+        const params = new URLSearchParams({ limit: "200" });
         const { documents: allDocs } = await apiClient.getDocuments(params);
-        
+
         setSummaryStats({
-          totalDocuments: allDocs.length, // This is an approximation if total > 200
+          totalDocuments: allDocs.length,
           approvedDocuments: allDocs.filter(doc => doc.status === 'approved').length,
           pendingReview: allDocs.filter(doc => doc.status === 'pending_review').length,
           drafts: allDocs.filter(doc => doc.status === 'draft').length,
         });
 
-        // Derive recent activities from latest documents (example)
         const derivedActivities = allDocs
-          .sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .slice(0, 3) // Take 3 most recently updated
+          .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+          .slice(0, 5)
           .map((doc: Document, index: number): ActivityItem => ({
             id: `doc-activity-${doc.id}-${index}`,
             text: `Document "${doc.title}" was recently updated (Status: ${doc.status}).`,
-            timestamp: new Date(doc.updatedAt).toLocaleDateString(),
-            imageUrl: doc.imageUrl || (doc.status === 'approved' ? 'https://placehold.co/48x48/a2e2a2/000000.png' : 'https://placehold.co/48x48.png') ,
+            timestamp: new Date(doc.updated_at).toLocaleString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }),
+            imageUrl: doc.image_url,
             imageAlt: doc.title,
             dataAiHint: "document icon",
             link: `/documents/${doc.id}`
           }));
         setRecentActivities(derivedActivities.length > 0 ? derivedActivities : staticRecentActivities);
-
       } catch (error) {
         console.error("Failed to fetch dashboard stats:", error);
-        // Keep static/default stats on error
       } finally {
         setLoadingStats(false);
       }
@@ -103,7 +108,7 @@ export default function DashboardPage() {
     if (user && !authLoading) {
       fetchDashboardData();
     } else if (!authLoading && !user) {
-      setLoadingStats(false); // Not logged in, no stats to load
+      setLoadingStats(false);
     }
   }, [user, authLoading]);
 
@@ -123,7 +128,7 @@ export default function DashboardPage() {
       </div>
     );
   }
-  
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -195,8 +200,8 @@ export default function DashboardPage() {
             <ul className="space-y-4">
               {recentActivities.map((activity) => (
                 <li key={activity.id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg shadow-sm">
-                  {activity.imageUrl && (
-                    <div className="flex-shrink-0 mt-0.5">
+                  <div className="flex-shrink-0 mt-0.5 w-12 h-12 flex items-center justify-center bg-muted rounded-md">
+                    {activity.imageUrl ? (
                       <Image
                         src={activity.imageUrl}
                         alt={activity.imageAlt || 'Activity image'}
@@ -205,13 +210,17 @@ export default function DashboardPage() {
                         className="rounded-md object-cover"
                         {...(activity.dataAiHint && {'data-ai-hint': activity.dataAiHint})}
                       />
-                    </div>
-                  )}
+                    ) : (
+                      getIconFromStatus(activity.text)
+                    )}
+                  </div>
                   <div className="flex-grow">
                     {activity.link ? (
-                       <Link href={activity.link} className="hover:underline"><p className="text-sm text-foreground">{activity.text}</p></Link>
+                      <Link href={activity.link} className="hover:underline">
+                        <p className="text-sm text-foreground">{activity.text}</p>
+                      </Link>
                     ) : (
-                       <p className="text-sm text-foreground">{activity.text}</p>
+                      <p className="text-sm text-foreground">{activity.text}</p>
                     )}
                     {activity.timestamp && (
                       <p className="text-xs text-muted-foreground mt-0.5">{activity.timestamp}</p>
