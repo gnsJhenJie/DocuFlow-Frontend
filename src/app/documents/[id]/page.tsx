@@ -19,6 +19,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { apiClient } from '@/lib/apiClient';
+import Link from 'next/link';
+
 
 export default function DocumentDetailPage() {
   const params = useParams();
@@ -188,9 +190,11 @@ export default function DocumentDetailPage() {
       <div className="text-center mt-8">
         <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
         <p className="mt-4 text-xl">Document not found.</p>
-        <Button onClick={() => router.back()} className="mt-4">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
-        </Button>
+        <Link href="/documents" className="mt-4 inline-block">
+          <Button className="mt-0">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Documents
+          </Button>
+        </Link>
       </div>
     );
 
@@ -232,9 +236,11 @@ export default function DocumentDetailPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-0">
-      <Button onClick={() => router.back()} variant="outline" className="mb-6">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Documents
-      </Button>
+      <Link href="/documents" className="mb-6 inline-block">
+        <Button className="mb-6">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Documents
+        </Button>
+      </Link>
       <Card className="overflow-hidden shadow-xl">
         {document.imageUrl && !isEditing && (
           <div className="relative h-64 md:h-96 w-full">
