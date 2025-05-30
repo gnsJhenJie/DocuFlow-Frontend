@@ -53,7 +53,7 @@ interface DynamicCounts {
 
 const navItemsBase: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: Home, roles: ['viewer', 'editor', 'reviewer', 'admin'] },
-  { href: '/documents', label: 'Documents', icon: Files, roles: ['editor', 'reviewer', 'admin'], badgeCountKey: 'allDocumentsCount' },
+  { href: '/documents', label: 'Documents', icon: Files, roles: ['viewer', 'editor', 'reviewer', 'admin'], badgeCountKey: 'allDocumentsCount' },
   { href: '/documents?view=my_documents', label: 'My Documents', icon: FileText, roles: ['editor', 'reviewer', 'admin'], badgeCountKey: 'myDocumentsCount' },
   { href: '/documents?view=pending_my_review', label: 'Pending My Review', icon: MailCheck, roles: ['reviewer', 'admin'], badgeCountKey: 'pendingMyReviewCount' },
   {
@@ -104,7 +104,6 @@ export function SidebarNav() {
 
         for (const [key, status] of statuses) {
           const params = new URLSearchParams();
-          if (user.role !== 'admin') params.set('authorId', user.id);
           params.set('status', status);
           params.set('limit', '999');
           const res = await apiClient.getDocuments(params);
