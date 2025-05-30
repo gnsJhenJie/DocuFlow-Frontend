@@ -109,12 +109,8 @@ export function DocumentCard({ document, currentUserRole, currentUserId }: Docum
             </Link>
           )}
           {canDelete && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDelete}
-            >
-              <Trash2 className="mr-0.2 h-4 w-4"/>
+            <Button variant="destructive" size="sm" onClick={handleDelete} >
+              <Trash2 className="mr-0.2 h-4 w-4" />
             </Button>
           )}
         </div>

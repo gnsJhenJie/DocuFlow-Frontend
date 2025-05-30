@@ -263,7 +263,7 @@ export default function DocumentDetailPage() {
           </div>
         </CardHeader>
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 m-2 md:m-4">
+          <TabsList className="grid max-w-full grid-cols-2 md:grid-cols-3 m-2 md:m-4">
             <TabsTrigger value="details">
               <Eye className="mr-2 h-4 w-4" />Details
             </TabsTrigger>

@@ -23,6 +23,16 @@ interface ActivityItem {
   link?: string;
 }
 
+interface ApprovedItem {
+  id: string;
+  text: string;
+  timestamp?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  dataAiHint?: string;
+  link?: string;
+}
+
 const staticRecentActivities: ActivityItem[] = [
   {
     id: 'activity1',
@@ -64,6 +74,7 @@ export default function DashboardPage() {
     drafts: 0,
   });
   const [recentActivities, setRecentActivities] = useState<ActivityItem[]>(staticRecentActivities);
+  const [approvedItems, setApprovedItems] = useState<ApprovedItem[]>([]);
   const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
@@ -80,6 +91,31 @@ export default function DashboardPage() {
           pendingReview: allDocs.filter(doc => doc.status === 'pending_review').length,
           drafts: allDocs.filter(doc => doc.status === 'draft').length,
         });
+
+        const approvedDocs = allDocs.filter(doc => doc.status === 'approved');
+        const derivedApprovedItems = approvedDocs
+          .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+          .slice(0, 5)
+          .map((doc: Document, index: number): ApprovedItem => ({
+            id: `doc-approved-${doc.id}-${index}`,
+            text: `Document "${doc.title}" was approved by ${doc.reviewer_name || 'an admin'}.`,
+            timestamp: format(new Date(doc.reviewed_at || doc.updated_at), "MMMM do, yyyy h:mm a", { locale: enUS }),
+            imageUrl: doc.image_url,
+            imageAlt: doc.title,
+            dataAiHint: "document icon",
+            link: `/documents/${doc.id}`
+          }));
+        setApprovedItems(derivedApprovedItems);
+        if (approvedDocs.length === 0) {
+          setApprovedItems([{
+            id: 'no-approved-docs',
+            text: 'No documents have been approved yet.',
+            imageUrl: 'https://placehold.co/48x48.png',
+            imageAlt: 'No approved documents icon',
+            dataAiHint: 'no approved documents',
+            timestamp: format(new Date(), "MMMM do, yyyy h:mm a", { locale: enUS }),
+          }]);
+        }
 
         const derivedActivities = allDocs
           .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
@@ -183,11 +219,55 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Approvements</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingStats && approvedItems.length === 0 ? (
+            <div className="flex justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div>
+          ) : approvedItems.length > 0 ? (
+            <ul className="space-y-4">
+              {approvedItems.map((item) => (
+                <li key={item.id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg shadow-sm">
+                  <div className="flex-shrink-0 mt-0.5 w-12 h-12 flex items-center justify-center bg-muted rounded-md">
+                    {item.imageUrl ? (
+                      <Image
+                        src={item.imageUrl}
+                        alt={item.imageAlt || 'Approved document image'}
+                        width={48}
+                        height={48}
+                        className="rounded-md object-cover"
+                        {...(item.dataAiHint && {'data-ai-hint': item.dataAiHint})}
+                      />
+                    ) : (
+                      getIconFromStatus(item.text)
+                    )}
+                  </div>
+                  <div className="flex-grow">
+                    {item.link ? (
+                      <Link href={item.link} className="hover:underline">
+                        <p className="text-sm text-foreground">{item.text}</p>
+                      </Link>
+                    ) : (
+                      <p className="text-sm text-foreground">{item.text}</p>
+                    )}
+                    {item.timestamp && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.timestamp}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground">No recent approvals to display.</p>
+          )}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>A log of recent document changes and system updates.</CardDescription>
+          {/* <CardDescription>A log of recent document changes and system updates.</CardDescription> */}
         </CardHeader>
         <CardContent>
           {loadingStats && recentActivities.length === 0 ? (
