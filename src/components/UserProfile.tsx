@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,16 +19,17 @@ export function UserProfile() {
   const { user, logout, loading, fetchCurrentUser } = useAuth();
 
   useEffect(() => {
-    // If no user but not loading (meaning initial token check done), try fetching user.
-    // This handles cases where token exists but user object wasn't immediately available.
     if (!user && !loading && localStorage.getItem('docuflow_jwt_token')) {
       fetchCurrentUser();
     }
   }, [user, loading, fetchCurrentUser]);
 
-
   if (loading) {
-    return <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full"><Loader2 className="h-5 w-5 animate-spin" /></Button>;
+    return (
+      <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </Button>
+    );
   }
 
   if (!user) {
@@ -40,29 +40,40 @@ export function UserProfile() {
     );
   }
 
-  const getInitials = (name: string) => {
+  const getAvatarFallback = (name: string) => {
     if (!name) return '??';
-    const names = name.split(' ');
-    if (names.length > 1) {
-      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+    const trimmed = name.trim();
+
+    const isChinese = /[\u4e00-\u9fff]/.test(trimmed);
+    if (isChinese) {
+      return trimmed.length > 1 ? trimmed.slice(1) : trimmed; // 顯示名
     }
-    return name.substring(0, 2).toUpperCase();
+
+    const parts = trimmed.split(/\s+/);
+    const initials = parts.map(p => p[0]).join('');
+    return initials.toUpperCase(); // 顯示每個單字首字母
   };
-  
+  const fallbackInitials = getAvatarFallback(user.name);
+  const fallbackAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    fallbackInitials
+  )}&background=E0E0E0&color=000000&size=100`;
+
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-9 w-9">
             <AvatarImage
-              src={user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(getInitials(user.name))}&background=E0E0E0&color=000000&size=100`}
+              src={user.avatarUrl || fallbackAvatarUrl}
               alt={user.name || 'User Avatar'}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.onerror = null;
-                target.src = 'https://ui-avatars.com/api/?name=DF&background=E0E0E0&color=000000&size=100';
+                target.src = fallbackAvatarUrl;
               }}
             />
+            <AvatarFallback>{fallbackInitials}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -76,23 +87,16 @@ export function UserProfile() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {/* Profile link can be re-enabled when /profile page exists */}
-        {/* <DropdownMenuItem asChild>
-          <Link href="/profile" className="flex items-center"> 
-            <UserIcon className="mr-2 h-4 w-4" />
-            Profile
-          </Link>
-        </DropdownMenuItem> */}
         {user.role === 'admin' && (
-           <DropdownMenuItem asChild>
-             <Link href="/admin" className="flex items-center">
-               <Shield className="mr-2 h-4 w-4" />
-               Admin Panel
-             </Link>
-           </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/admin" className="flex items-center">
+              <Shield className="mr-2 h-4 w-4" />
+              Admin Panel
+            </Link>
+          </DropdownMenuItem>
         )}
         <DropdownMenuItem asChild>
-           <Link href="/settings" className="flex items-center">
+          <Link href="/settings" className="flex items-center">
             <Settings className="mr-2 h-4 w-4" />
             Settings
           </Link>
