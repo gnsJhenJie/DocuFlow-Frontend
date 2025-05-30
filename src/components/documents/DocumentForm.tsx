@@ -1,6 +1,3 @@
-
-'use client';
-
 import { useState, useEffect, useRef } from 'react';
 import type { Document, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -21,14 +18,14 @@ import { apiClient } from '@/lib/apiClient';
 const documentSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }).max(100),
   content: z.string().min(10, { message: "Content must be at least 10 characters." }).optional().default(''),
-  imageUrl: z.string().url({ message: "Please enter a valid URL for the cover image." }).optional().or(z.literal('')), // Allow empty string or valid URL
-  reviewerId: z.string().optional(), // Will be string from select, converted to number for API if needed
+  imageUrl: z.string().url({ message: "Please enter a valid URL for the cover image." }).optional().or(z.literal('')),
+  reviewerId: z.string().optional(),
 });
 
 type DocumentFormData = z.infer<typeof documentSchema>;
 
 interface DocumentFormProps {
-  document?: Document; // For editing
+  document?: Document;
   currentUser: User;
   onSubmit: (data: DocumentFormData, action: 'save_draft' | 'submit_for_review' | 'resubmit_for_review') => void;
   onCancel?: () => void;
@@ -45,15 +42,15 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
   const { toast } = useToast();
   const contentTextAreaRef = useRef<HTMLTextAreaElement>(null);
   const contentImageUploadRef = useRef<HTMLInputElement>(null);
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
 
-
-  const { control, handleSubmit, register, formState: { errors }, reset, watch, setValue, getValues } = useForm<DocumentFormData>({
+  const { control, handleSubmit, register, formState: { errors }, reset, setValue, getValues } = useForm<DocumentFormData>({
     resolver: zodResolver(documentSchema),
     defaultValues: {
       title: document?.title || '',
       content: document?.content || '',
       imageUrl: document?.image_url || '',
-      reviewerId: document?.reviewer_id || '', // Keep as string, convert for API
+      reviewerId: document?.reviewer_id || '',
     },
   });
 
@@ -74,7 +71,7 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
       setIsLoadingReviewers(true);
       try {
         const fetchedReviewers = await apiClient.getReviewers();
-        setReviewers(fetchedReviewers.filter(r => r.id !== currentUser.id)); // Exclude current user
+        setReviewers(fetchedReviewers.filter(r => r.id !== currentUser.id));
       } catch (error: any) {
         toast({ title: "Error fetching reviewers", description: error.message, variant: "destructive" });
       } finally {
@@ -84,8 +81,8 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
     fetchReviewers();
   }, [currentUser.id, toast]);
 
-  const handleFileUpload = async (file: File, UploaderComponentStateSetter: React.Dispatch<React.SetStateAction<boolean>> ) : Promise<string | null> => {
-    UploaderComponentStateSetter(true);
+  const handleFileUpload = async (file: File, setLoading: React.Dispatch<React.SetStateAction<boolean>>): Promise<string | null> => {
+    setLoading(true);
     const formData = new FormData();
     formData.append('file', file);
     try {
@@ -96,165 +93,132 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
       toast({ title: "Image Upload Failed", description: error.message, variant: "destructive" });
       return null;
     } finally {
-        UploaderComponentStateSetter(false);
+      setLoading(false);
     }
   };
 
-  const handleCoverImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const uploadedImageUrl = await handleFileUpload(file, setIsUploadingCover);
-      if (uploadedImageUrl) {
-        setImagePreview(uploadedImageUrl);
-        setValue('imageUrl', uploadedImageUrl, { shouldValidate: true });
-      }
+  const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = await handleFileUpload(file, setIsUploadingCover);
+    if (url) {
+      setImagePreview(url);
+      setValue('imageUrl', url, { shouldValidate: true });
     }
+    e.target.value = '';
   };
 
-  const insertImageMarkdown = (dataUri: string, altText: string) => {
+  const insertImageMarkdown = (url: string, alt: string) => {
     const textarea = contentTextAreaRef.current;
     if (!textarea) return;
-
-    const markdownToInsert = `![${altText || 'image'}](${dataUri})\n`;
-    const currentContent = getValues('content') || '';
-    const { selectionStart, selectionEnd } = textarea;
-
-    const newContent = 
-      currentContent.substring(0, selectionStart) + 
-      markdownToInsert + 
-      currentContent.substring(selectionEnd);
-    
+    const markdown = `![${alt || 'image'}](${url})\n`;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const content = getValues('content') || '';
+    const newContent = content.slice(0, start) + markdown + content.slice(end);
     setValue('content', newContent, { shouldValidate: true });
-
     setTimeout(() => {
       textarea.focus();
-      textarea.selectionStart = textarea.selectionEnd = selectionStart + markdownToInsert.length;
+      textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
     }, 0);
-
-    toast({ title: "Image Inserted", description: `${altText} added to content.` });
+    toast({ title: "Image Inserted", description: `${alt} added.` });
   };
 
-  const processContentImageFile = async (file: File) => {
+  const processContentImage = async (file: File) => {
     if (!file.type.startsWith('image/')) {
-        toast({ title: "Invalid File", description: "Please select an image file.", variant: "destructive" });
-        return;
+      toast({ title: "Invalid File", description: "Please select an image file.", variant: "destructive" });
+      return;
     }
-    const uploadedImageUrl = await handleFileUpload(file, setIsUploadingContentImage);
-    if (uploadedImageUrl) {
-      insertImageMarkdown(uploadedImageUrl, file.name || "Uploaded Image");
-    }
+    const url = await handleFileUpload(file, setIsUploadingContentImage);
+    if (url) insertImageMarkdown(url, file.name.replace(file.name.split("_",2)[0]+'_',""));
   };
 
-  const handleContentImageSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      processContentImageFile(file);
-    }
-    if (event.target) event.target.value = ""; 
+  const handleContentImageSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processContentImage(file);
+    e.target.value = '';
   };
 
-  const handleContentDrop = (event: React.DragEvent<HTMLTextAreaElement>) => {
-    event.preventDefault();
-    const files = event.dataTransfer.files;
-    if (files && files.length > 0 && files[0].type.startsWith('image/')) {
-      processContentImageFile(files[0]);
-    }
+  const handleDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) processContentImage(file);
   };
-  const handleContentDragOver = (event: React.DragEvent<HTMLTextAreaElement>) => event.preventDefault();
-  const triggerContentImageUpload = () => contentImageUploadRef.current?.click();
-
+  const handleDragOver = (e: React.DragEvent<HTMLTextAreaElement>) => e.preventDefault();
+  const triggerContentUpload = () => contentImageUploadRef.current?.click();
 
   const onFormSubmit = (data: DocumentFormData, action: 'save_draft' | 'submit_for_review' | 'resubmit_for_review') => {
     if ((action === 'submit_for_review' || action === 'resubmit_for_review') && !data.reviewerId) {
-        toast({
-            title: "Reviewer Required",
-            description: "Please select a reviewer before submitting.",
-            variant: "destructive",
-        });
-        return;
+      toast({ title: "Reviewer Required", description: "Please select a reviewer.", variant: "destructive" });
+      return;
     }
     const submissionData = {
-        ...data,
-        content: data.content || '', 
-        imageUrl: data.imageUrl || undefined, // Ensure empty string becomes undefined for API
+      ...data,
+      content: data.content || '',
+      imageUrl: data.imageUrl || undefined,
     };
     onSubmit(submissionData, action);
   };
 
   const saveAction: 'save_draft' = 'save_draft';
-  const submitAction: 'submit_for_review' | 'resubmit_for_review' = formMode === 'create' ? 'submit_for_review' : 'resubmit_for_review';
-
-  const coverImageInputRef = useRef<HTMLInputElement>(null);
+  const submitAction = formMode === 'create' ? 'submit_for_review' : 'resubmit_for_review';
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
       <CardHeader>
         <CardTitle>{formMode === 'edit' ? 'Edit Document' : 'Create New Document'}</CardTitle>
-        <CardDescription>
-          {formMode === 'edit' ? 'Update the details of your document.' : 'Fill in the details to create a new document.'}
-        </CardDescription>
+        <CardDescription>{formMode === 'edit' ? 'Update your document details.' : 'Fill in the details to create a new document.'}</CardDescription>
       </CardHeader>
-      <form> {/* Removed onSubmit from form tag, will use button onClick + handleSubmit */}
+      <form className="space-y-6">
         <CardContent className="space-y-6">
+          {/* Title */}
           <div>
             <Label htmlFor="title">Title</Label>
             <Input id="title" {...register('title')} placeholder="Enter document title" className="mt-1" />
             {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
           </div>
 
+          {/* Content with image insert */}
           <div>
             <div className="flex justify-between items-center mb-1">
               <Label htmlFor="content">Content</Label>
-              <Button type="button" variant="outline" size="sm" onClick={triggerContentImageUpload} disabled={isUploadingContentImage}>
-                {isUploadingContentImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
-                Insert Image
+              <Button type="button" variant="outline" size="sm" onClick={triggerContentUpload} disabled={isUploadingContentImage}>
+                {isUploadingContentImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />} Insert Image
               </Button>
             </div>
             <Controller
               name="content"
               control={control}
-              rules={{
-                required: 'Content is required',
-                validate: value =>
-                  value.trim().length >= 10 || 'Content must be at least 10 characters.'
-              }}
+              rules={{ required: 'Content is required', validate: v => v.trim().length >= 10 || 'Content must be at least 10 characters.' }}
               render={({ field }) => (
                 <Textarea
-                  // label="Content"
+                  ref={contentTextAreaRef}
                   value={field.value}
                   onChange={field.onChange}
-                  // error={!!errors.content}
-                  // helperText={errors.content?.message}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
                 />
               )}
             />
             {errors.content && <p className="text-sm text-destructive mt-1">{errors.content.message}</p>}
             <p className="mt-1 text-xs text-muted-foreground flex items-center">
-              <Info className="h-3 w-3 mr-1" />
-              Use Markdown for formatting. Drag & drop or use button to upload and insert images.
+              <Info className="h-3 w-3 mr-1" /> Use Markdown for formatting. Drag & drop or use button to insert images.
             </p>
-             <input
-              type="file" accept="image/*" ref={contentImageUploadRef}
-              style={{ display: 'none' }} onChange={handleContentImageSelected}
-            />
+            <input type="file" accept="image/*" ref={contentImageUploadRef} className="hidden" onChange={handleContentImageSelected} />
           </div>
 
+          {/* Cover Image */}
           <div>
             <Label htmlFor="coverImageUpload">Cover Image (Optional)</Label>
             <div className="mt-1 flex items-center gap-4">
               <input ref={coverImageInputRef} id="coverImageUpload" type="file" accept="image/*" onChange={handleCoverImageChange} className="hidden" />
               <Button type="button" variant="outline" onClick={() => coverImageInputRef.current?.click()} disabled={isUploadingCover}>
-                {isUploadingCover ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                Upload Cover
+                {isUploadingCover ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />} Upload Cover
               </Button>
               {imagePreview && (
                 <div className="relative w-32 h-20 rounded border overflow-hidden">
-                  <Image src={imagePreview} alt="Preview" layout="fill" objectFit="cover" data-ai-hint="image preview" />
-                   <Button
-                    type="button" variant="destructive" size="icon"
-                    className="absolute top-1 right-1 h-6 w-6 opacity-70 hover:opacity-100"
-                    onClick={() => { setImagePreview(null); setValue('imageUrl', ''); }} // Set to empty string
-                  >
+                  <Image src={imagePreview} alt="Preview" fill style={{ objectFit: 'cover' }} />
+                  <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 opacity-70 hover:opacity-100" onClick={() => { setImagePreview(null); setValue('imageUrl', ''); }}>
                     <XCircle className="h-4 w-4" />
                   </Button>
                 </div>
@@ -262,9 +226,9 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
             </div>
             {errors.imageUrl && <p className="text-sm text-destructive mt-1">{errors.imageUrl.message}</p>}
           </div>
-          
-          {/* Show reviewer selection if creating, or if editing and status allows submission/resubmission */}
-          {(formMode === 'create' || (document && (document.status === 'draft' || document.status === 'rejected'))) && (
+
+          {/* Reviewer Selection */}
+          {(formMode === 'create' || (document && ['draft', 'rejected'].includes(document.status))) && (
             <div>
                 <Label htmlFor="reviewerId">Select Reviewer (for submission)</Label>
                 <Controller
@@ -290,23 +254,20 @@ export function DocumentForm({ document, currentUser, onSubmit, onCancel, formMo
                  {errors.reviewerId && <p className="text-sm text-destructive mt-1">{errors.reviewerId.message}</p>}
             </div>
           )}
-
         </CardContent>
+
+        {/* Footer Actions */}
         <CardFooter className="flex justify-end gap-3 border-t pt-6">
-          {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-          )}
-          {/* Allow save draft if creating, or if editing and current status is draft or rejected */}
-          {(formMode === 'create' || (document && (document.status === 'draft' || document.status === 'rejected'))) && (
+          {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>}
+          {(formMode === 'create' || (document && ['draft', 'rejected'].includes(document.status))) && (
             <Button type="button" variant="secondary" onClick={handleSubmit(data => onFormSubmit(data, saveAction))}>
-                <Save className="mr-2 h-4 w-4" /> Save Draft
+              <Save className="mr-2 h-4 w-4" /> Save Draft
             </Button>
           )}
            {/* Allow submit if creating, or if editing and current status is draft or rejected */}
           {(formMode === 'create' || (document && (document.status === 'draft' || document.status === 'rejected'))) && (
             <Button type="button" onClick={handleSubmit(data => onFormSubmit(data, submitAction))}>
-                <Send className="mr-2 h-4 w-4" /> 
-                {formMode === 'create' ? 'Submit for Review' : 'Resubmit for Review'}
+              <Send className="mr-2 h-4 w-4" /> {formMode === 'create' ? 'Submit for Review' : 'Resubmit for Review'}
             </Button>
           )}
         </CardFooter>
