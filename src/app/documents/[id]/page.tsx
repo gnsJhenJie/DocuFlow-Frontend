@@ -100,44 +100,70 @@ export default function DocumentDetailPage() {
     if (newTab === 'reviewActions') setIsReviewing(true);
   };
 
-  const handleFormSubmit = async (
-    data: any,
-    action: 'save_draft' | 'resubmit_for_review'
-  ) => {
-    if (!document || !user) return;
-    const payload: any = { title: data.title, content: data.content, action };
-    if (data.imageUrl) payload.imageUrl = data.imageUrl;
-    if (action === 'resubmit_for_review') {
-      if (!data.reviewerId) {
-        toast({
-          title: 'Reviewer Required',
-          description: 'Please select a reviewer.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      payload.reviewerId = parseInt(data.reviewerId, 10);
-    }
-    try {
-      const updatedDoc = await apiClient.updateDocument(document.id, payload);
-      setDocument(updatedDoc);
-      const historyData = await apiClient.getDocumentHistory(document.id);
-      setDocumentHistory(
-        historyData.sort(
-          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )
-      );
-      setIsEditing(false);
-      setActiveTab('details');
-      window.history.replaceState(null, '', `/documents/${docId}`);
-      toast({
-        title: action === 'save_draft' ? 'Draft Saved' : 'Resubmitted',
-        description: `"${updatedDoc.title}" updated.`,
-      });
-    } catch (error: any) {
-      toast({ title: 'Error Updating', description: error.message, variant: 'destructive' });
-    }
+// inside DocumentDetailPage.tsx
+
+const handleFormSubmit = async (
+  data: any,
+  action: 'save_draft' | 'resubmit_for_review'
+) => {
+  if (!document || !user) return;
+
+  // 1️⃣ Build base payload
+  const payload: any = {
+    title: data.title,
+    content: data.content,
+    action,
   };
+  if (data.imageUrl) {
+    payload.imageUrl = data.imageUrl;
+  }
+
+  if (data.reviewerId) {
+    const rid = parseInt(data.reviewerId, 10);
+    if (isNaN(rid)) {
+      toast({
+        title: 'Invalid Reviewer',
+        description: 'Reviewer ID is not valid.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    payload.reviewerId = rid;
+  }
+
+  if (action === 'resubmit_for_review' && !payload.reviewerId) {
+    toast({
+      title: 'Reviewer Required',
+      description: 'Please select a reviewer.',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  try {
+    const updatedDoc = await apiClient.updateDocument(document.id, payload);
+
+    setDocument(updatedDoc);
+    const historyData = await apiClient.getDocumentHistory(document.id);
+    setDocumentHistory(
+      historyData.sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+    );
+
+    setIsEditing(false);
+    setActiveTab('details');
+    window.history.replaceState(null, '', `/documents/${docId}`);
+
+    toast({
+      title: action === 'save_draft' ? 'Draft Saved' : 'Resubmitted',
+      description: `"${updatedDoc.title}" updated.`,
+    });
+  } catch (error: any) {
+    toast({ title: 'Error Updating', description: error.message, variant: 'destructive' });
+  }
+};
+
 
   const handleApprove = async () => {
     if (!document || !user) return;

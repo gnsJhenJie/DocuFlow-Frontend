@@ -1,4 +1,3 @@
-
 'use client';
 
 import { DocumentForm } from '@/components/documents/DocumentForm';
@@ -18,39 +17,77 @@ export default function NewDocumentPage() {
   }
 
   if (user.role === 'viewer') {
-    // If the user is a viewer, they should not be able to create documents
-     return <p className="text-center mt-8 text-red-600">You do not have permission to create documents.</p>;
+    return (
+      <p className="text-center mt-8 text-red-600">
+        You do not have permission to create documents.
+      </p>
+    );
   }
 
-  const handleSubmit = async (data: any, action: 'save_draft' | 'submit_for_review') => {
-    // API expects 'save_draft' or 'submit_for_review'
-    const payload = {
+  const handleSubmit = async (
+    data: any,
+    action: 'save_draft' | 'submit_for_review'
+  ) => {
+    // Build the payload
+    const payload: any = {
       ...data,
-      action: action, // Ensure action is part of the payload for the backend
+      action, // 'save_draft' or 'submit_for_review'
     };
-    // API expects reviewerId to be a number if present
+
+    // Convert reviewerId if it's a string
     if (payload.reviewerId && typeof payload.reviewerId === 'string') {
-        payload.reviewerId = parseInt(payload.reviewerId, 10);
-        if (isNaN(payload.reviewerId)) {
-            toast({ title: "Invalid Reviewer", description: "Reviewer ID is not valid.", variant: "destructive" });
-            return;
-        }
+      const n = parseInt(payload.reviewerId, 10);
+      if (isNaN(n)) {
+        toast({
+          title: 'Invalid Reviewer',
+          description: 'Reviewer ID must be a number.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      payload.reviewerId = n;
     }
 
+    // Only require reviewerId when submitting for review
+    if (action === 'submit_for_review' && !payload.reviewerId) {
+      toast({
+        title: 'Reviewer Required',
+        description: 'Please select a reviewer before submitting for review.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // If saving draft and no reviewer was chosen, drop the field entirely
+    if (action === 'save_draft' && !payload.reviewerId) {
+      delete payload.reviewerId;
+    }
 
     try {
       console.log('[NewDocumentPage] Submitting to API:', payload);
       const newDocument = await apiClient.createDocument(payload);
+
       toast({
-        title: `Document ${action === 'save_draft' ? 'Draft Saved' : 'Submitted'}`,
-        description: `"${newDocument.title}" has been successfully ${action === 'save_draft' ? 'saved as a draft' : 'submitted for review'}.`,
+        title: action === 'save_draft' ? 'Draft Saved' : 'Submitted',
+        description: `"${newDocument.title}" has been successfully ${
+          action === 'save_draft' ? 'saved as a draft' : 'submitted for review'
+        }.`,
       });
+
+      // After creating a draft, go to the edit screen so you can continue
       router.push(`/documents/${newDocument.id}`);
     } catch (error: any) {
-      console.error(`[NewDocumentPage] Error ${action === 'save_draft' ? 'saving draft' : 'submitting document'}:`, error);
+      console.error(
+        `[NewDocumentPage] Error ${
+          action === 'save_draft' ? 'saving draft' : 'submitting document'
+        }:`,
+        error
+      );
       toast({
-        title: `Error`,
-        description: error.message || `Failed to ${action === 'save_draft' ? 'save draft' : 'submit document'}.`,
+        title: 'Error',
+        description:
+          error.message ||
+          `Failed to ${action === 'save_draft' ? 'save draft' : 'submit document'}.`,
         variant: 'destructive',
       });
     }
@@ -58,11 +95,10 @@ export default function NewDocumentPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-0">
-      {/* Pass user as currentUser, and ensure onSubmit handles the two distinct actions */}
-      <DocumentForm 
-        currentUser={user} 
-        onSubmit={handleSubmit} 
-        onCancel={() => router.push('/documents')} 
+      <DocumentForm
+        currentUser={user}
+        onSubmit={handleSubmit}
+        onCancel={() => router.push('/documents')}
         formMode="create"
       />
     </div>

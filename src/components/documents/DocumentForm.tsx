@@ -87,7 +87,7 @@ export function DocumentForm({
       title: document?.title || '',
       content: document?.content || '',
       imageUrl: document?.image_url || '',
-      reviewerId: document?.reviewer_id || '',
+      reviewerId: document?.reviewerId != null ? String(document.reviewerId) : '',
     },
   });
 
@@ -102,7 +102,7 @@ export function DocumentForm({
         title: document.title,
         content: document.content,
         imageUrl: document.image_url || '',
-        reviewerId: document.reviewer_id || '',
+        reviewerId: document.reviewerId != null ? String(document.reviewerId) : '',
       });
       setImagePreview(document.image_url || null);
     }
@@ -113,7 +113,7 @@ export function DocumentForm({
       setIsLoadingReviewers(true);
       try {
         const data = await apiClient.getReviewers();
-        setReviewers(data.filter((r) => r.id !== currentUser.id));
+        setReviewers(data.filter((r) => Number(r.id) !== Number(currentUser.id)));
       } catch (err: any) {
         toast({ title: 'Error fetching reviewers', description: err.message, variant: 'destructive' });
       } finally {

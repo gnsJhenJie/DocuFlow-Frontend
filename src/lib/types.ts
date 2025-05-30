@@ -20,7 +20,7 @@ export interface Document {
   status: ReviewStatus;
   author_id: string; // User ID
   author_name: string;
-  reviewer_id?: string; // User ID - will be string in frontend state
+  reviewerId?: string; // User ID - will be string in frontend state
   reviewer_name?: string;
   rejection_reason?: string;
   created_at: string;
