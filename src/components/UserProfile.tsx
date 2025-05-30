@@ -54,9 +54,15 @@ export function UserProfile() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-9 w-9">
-            {/* Use a placeholder if avatarUrl is not present */}
-            <AvatarImage src={user.avatarUrl || `https://placehold.co/100x100/E0E0E0/000000?text=${getInitials(user.name)}`} alt={user.name} data-ai-hint="user avatar" />
-            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+            <AvatarImage
+              src={user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(getInitials(user.name))}&background=E0E0E0&color=000000&size=100`}
+              alt={user.name || 'User Avatar'}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.onerror = null;
+                target.src = 'https://ui-avatars.com/api/?name=DF&background=E0E0E0&color=000000&size=100';
+              }}
+            />
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
