@@ -2,7 +2,7 @@ name: Build and Push Docker Image to AWS ECR
 
 on:
   push:
-    branches: [ "main" ]  # 或你想要自動觸發的分支
+    branches: [ "master" ]  # 或你想要自動觸發的分支
 
 jobs:
   build-and-push:
