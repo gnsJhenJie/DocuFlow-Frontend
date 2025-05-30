@@ -17,7 +17,8 @@ export default function NewDocumentPage() {
     return <p className="text-center mt-8">Please log in to create a document.</p>;
   }
 
-  if (user.role !== 'editor' && user.role !== 'admin') {
+  if (user.role === 'viewer') {
+    // If the user is a viewer, they should not be able to create documents
      return <p className="text-center mt-8 text-red-600">You do not have permission to create documents.</p>;
   }
 

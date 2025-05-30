@@ -16,17 +16,18 @@ export interface Document {
   title: string;
   content: string;
   image_url?: string;
+  version: number;
+  status: ReviewStatus;
   author_id: string; // User ID
   author_name: string;
   reviewer_id?: string; // User ID - will be string in frontend state
   reviewer_name?: string;
-  status: ReviewStatus;
+  rejection_reason?: string;
   created_at: string;
   updated_at: string;
   submitted_at?: string;
   reviewed_at?: string;
-  rejection_reason?: string;
-  version: number;
+  
 }
 
 export interface DocumentHistoryEntry {

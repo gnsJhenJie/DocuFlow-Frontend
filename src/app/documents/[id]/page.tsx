@@ -199,16 +199,16 @@ export default function DocumentDetailPage() {
     );
 
   const canEdit =
-    (user.role === 'admin' || document.authorId === user.id) &&
+    (user.role === 'admin' || document.authorId === Number(user.id)) &&
     (document.status === 'draft' ||
       document.status === 'rejected' ||
       (document.status === 'approved' && user.role !== 'viewer'));
 
   const canReview =
-    (user.role === 'admin' || document.reviewerId === user.id) &&
+    (user.role === 'admin' || document.reviewerId === Number(user.id)) &&
     document.status === 'pending_review';
-
-  if (isEditing && canEdit) {
+  
+    if (isEditing && canEdit) {
     return (
       <DocumentForm
         document={document}

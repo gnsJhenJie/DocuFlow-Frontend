@@ -24,7 +24,7 @@ export function DocumentCard({ document, currentUserRole }: DocumentCardProps) {
     setIsClient(true); // Set to true after component mounts
   }, []);
 
-  const canEdit = (currentUserRole === 'editor' || currentUserRole === 'admin') && (document.status === 'draft' || document.status === 'rejected');
+  const canEdit = (currentUserRole !== 'viewer') && (document.status === 'draft' || document.status === 'rejected');
   const canReview = (currentUserRole === 'reviewer' || currentUserRole === 'admin') && document.status === 'pending_review';
 
   return (
