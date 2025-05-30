@@ -60,6 +60,7 @@ export function DocumentForm({
   const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
+  const [coverTouched, setCoverTouched] = useState(false);
 
   const contentTextAreaRef = useRef<HTMLTextAreaElement>(null);
   const contentImageUploadRef = useRef<HTMLInputElement>(null);
@@ -78,7 +79,7 @@ export function DocumentForm({
     setValue,
     getValues,
     watch,
-    formState: { errors },
+    formState: { errors , dirtyFields },
     reset,
   } = useForm<DocumentFormData>({
     resolver: zodResolver(documentSchema),
@@ -177,6 +178,7 @@ export function DocumentForm({
   };
 
   const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCoverTouched(true);
     const file = e.target.files?.[0];
     if (!file) return;
     const url = await handleFileUpload(file, setIsUploadingCover);
@@ -244,6 +246,14 @@ export function DocumentForm({
       action,
     );
   };
+
+  const isApproved = document?.status === 'approved';
+  const changedSpecific =
+    !!dirtyFields.title ||
+    !!dirtyFields.content ||
+    !!dirtyFields.imageUrl ||
+    !!coverTouched;
+  const shouldDisable = isApproved && !changedSpecific;
 
   const saveAction: 'save_draft' = 'save_draft';
   const submitAction: 'submit_for_review' | 'resubmit_for_review' =
@@ -378,14 +388,14 @@ export function DocumentForm({
           </div>
 
           {/* Reviewer Selection ------------------------------------------- */}
-          {(formMode === 'create' || (document && ['draft', 'rejected'].includes(document.status))) && (
+          {(formMode === 'create' || (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
             <div className="flex flex-col gap-2">
               <Label htmlFor="reviewerId">Select Reviewer</Label>
               <Controller
                 name="reviewerId"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value || ''} disabled={isLoadingReviewers}>
+                  <Select onValueChange={field.onChange} value={field.value || ''} disabled={isLoadingReviewers || shouldDisable}>
                     <SelectTrigger id="reviewerId">
                       <SelectValue placeholder={isLoadingReviewers ? 'Loading…' : 'Choose a reviewer'} />
                     </SelectTrigger>
@@ -416,14 +426,14 @@ export function DocumentForm({
             </Button>
           )}
 
-          {(formMode === 'create' || (document && ['draft', 'rejected'].includes(document.status))) && (
-            <Button type="button" variant="secondary" onClick={handleSubmit((d) => onFormSubmit(d, saveAction))}>
+          {(formMode === 'create' || (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
+            <Button type="button" variant="secondary" className="hover:bg-secondary/70" onClick={handleSubmit((d) => onFormSubmit(d, saveAction))} disabled={shouldDisable}>
               <Save className="mr-2 h-4 w-4" /> Save Draft
             </Button>
           )}
 
-          {(formMode === 'create' || (document && ['draft', 'rejected'].includes(document.status))) && (
-            <Button type="submit">
+          {(formMode === 'create' || (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
+            <Button type="submit" className="bg-primary/100 hover:bg-primary/80" disabled={shouldDisable}>
               <Send className="mr-2 h-4 w-4" />
               {formMode === 'create' ? 'Submit for Review' : 'Resubmit'}
             </Button>
