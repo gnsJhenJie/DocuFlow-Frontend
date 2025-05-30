@@ -29,7 +29,9 @@ export default function DocumentsPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ReviewStatus | 'all'>('all');
+  const statusFromUrl = searchParams.get('status') as ReviewStatus | 'all' || 'all';
+  const [statusFilter, setStatusFilter] = useState<ReviewStatus | 'all'>(statusFromUrl);
+
   const [sortBy, setSortBy] = useState('updatedAt_desc');
   const [viewFilter, setViewFilter] = useState<string | null>(null);
 

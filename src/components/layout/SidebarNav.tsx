@@ -111,7 +111,6 @@ export function SidebarNav() {
                                           // For a real count, backend should provide it or fetch all.
                                           // Mocking with 'getDocuments' which returns paginated.
           const response = await apiClient.getDocuments(queryParams);
-          const countKey = `${status}Count` as keyof DynamicCounts;
           // This is still an approximation using totalPages * limit or actual count if small
           // A proper backend API would provide these counts directly.
           // For simplicity, let's assume the 'documents' array length from a potentially wider query is the count
@@ -121,8 +120,14 @@ export function SidebarNav() {
           statusParams.set('status', status);
           statusParams.set('limit', '999'); // Try to get all for count
           const statusData = await apiClient.getDocuments(statusParams);
+          let countKey: keyof DynamicCounts;
+          if (status === 'pending_review') {
+            countKey = 'pendingReviewCount';
+          } else {
+            countKey = `${status}Count` as keyof DynamicCounts;
+          }
           counts[countKey] = statusData.documents.length;
-        }
+          }
         
         // Pending My Review count (specific for reviewer/admin)
         if (user.role === 'reviewer' || user.role === 'admin') {
