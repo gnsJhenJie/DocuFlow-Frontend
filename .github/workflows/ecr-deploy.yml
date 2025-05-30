@@ -27,7 +27,7 @@ jobs:
         run: docker build -t docuflow-frontend:latest .
 
       - name: Tag Docker image
-        run: docker tag docuflow-frontend:latest 819498957810.dkr.ecr.ap-northeast-1.amazonaws.com/nycu/docuflow-frontend:latest"
+        run: docker tag docuflow-frontend:latest 819498957810.dkr.ecr.ap-northeast-1.amazonaws.com/nycu/docuflow-frontend:latest
 
       - name: Push Docker image to Amazon ECR
         run: docker push 819498957810.dkr.ecr.ap-northeast-1.amazonaws.com/nycu/docuflow-frontend:latest
