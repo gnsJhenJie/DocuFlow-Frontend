@@ -6,20 +6,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
@@ -27,27 +15,12 @@ import { DocumentForm } from '@/components/documents/DocumentForm';
 import { ReviewActions } from '@/components/documents/ReviewActions';
 import { DocumentStatusBadge } from '@/components/documents/DocumentStatusBadge';
 
-import type { Document, DocumentHistoryEntry } from '@/lib/types';
+import type { Document, DocumentHistoryEntry, User } from '@/lib/types';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-import {
-  ArrowLeft,
-  Edit3,
-  Eye,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  MessageSquare,
-  ShieldCheck,
-  Send,
-  FileText,
-  History,
-  AlertTriangle,
-  Loader2,
-  User as UserIcon,
-} from 'lucide-react';
+import { ArrowLeft, Edit3, Eye, Clock, CheckCircle2, XCircle, MessageSquare, ShieldCheck, Send, FileText, History, AlertTriangle, Loader2, Trash2, UserCheck2, User as UserIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -80,6 +53,11 @@ export default function DocumentDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'history' | 'reviewActions'>('details');
+
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
+  const [potentialReviewers, setPotentialReviewers] = useState<User[]>([]);
+  const [newReviewerId, setNewReviewerId] = useState<string>('');
 
   /* -- utils -- */
   /** 產生 `/documents/detail?...` 的 URL，flag 全由參數決定，避免非同步 state race */
@@ -132,6 +110,21 @@ export default function DocumentDetailPage() {
     }));
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) return;
+    try {
+      await apiClient.deleteDocument(doc.id);
+      toast({
+        title: 'Document Deleted',
+        description: `"${doc.title}" has been successfully deleted.`,
+        variant: 'success',
+      });
+      window.location.reload();
+    } catch (err: any) {
+      alert(`Error Deleting Document: ${err.message}`);
+    }
+  };
+
   /* ---------- CRUD helpers (submit / approve / reject) ---------- */
   const refreshDocAndHistory = async (newDoc?: Document) => {
     if (newDoc) setDoc(newDoc);
@@ -168,6 +161,53 @@ export default function DocumentDetailPage() {
       });
     } catch (err: any) {
       toast({ title: 'Update Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const fetchReviewersForModal = async () => {
+    if (!showReassignModal) return; // Only fetch if modal is to be shown
+    setIsLoadingReviewers(true);
+    try {
+      const fetchedReviewers = await apiClient.getReviewers();
+      // Filter out the document's current author from the list of potential new reviewers
+      setPotentialReviewers(fetchedReviewers.filter(rev => rev.id !== doc?.author_id));
+    } catch (error: any) {
+      toast({ title: "Error fetching reviewers", description: error.message, variant: "destructive" });
+    } finally {
+      setIsLoadingReviewers(false);
+    }
+  };
+  
+  // Fetch reviewers when the reassign modal is about to open
+  useEffect(() => {
+    if (showReassignModal && doc) {
+      fetchReviewersForModal();
+    }
+  }, [showReassignModal, doc]);
+
+
+  const handleOpenReassignModal = (document: Document) => {
+    setDoc(document);
+    setNewReviewerId(document.reviewer_id || ''); // Pre-select current reviewer if any
+    setShowReassignModal(true);
+  };
+
+  const handleReassign = async (newReviewerId: string) => {
+    if (!doc || !newReviewerId) return;
+    try {
+      const updatedDoc = await apiClient.reassignReviewer(doc.id, Number(newReviewerId));  // 調用後端 API
+      await refreshDocAndHistory(updatedDoc);
+      toast({
+        title: "Document Reassigned",
+        description: `"${updatedDoc.title}" has been reassigned.`,
+        variant: "default",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: `Could not reassign reviewer: ${error.message}`,
+        variant: "destructive",
+      });
     }
   };
 
@@ -234,14 +274,27 @@ export default function DocumentDetailPage() {
   }
 
   /* ---------- permissions ---------- */
-  const canEdit =
-    (user.role === 'admin' || doc.authorId === Number(user.id)) &&
-    (['draft', 'rejected'].includes(doc.status) ||
-      (doc.status === 'approved' && user.role !== 'viewer'));
+  const isAuthor = doc.authorId === Number(user.id);
+  const isReviewer = doc.reviewerId === Number(user.id);
+  const isAdmin = user.role === 'admin';
+  console.log('[DocumentDetailPage] isAuthor:', isAuthor, 'isReviewer:', isReviewer, 'isAdmin:', isAdmin);
 
-  const canReview =
-    (user.role === 'admin' || doc.reviewerId === Number(user.id)) &&
-    doc.status === 'pending_review';
+  const canEdit =
+    isAdmin
+      ? (doc.status === 'approved' ||
+         (isAuthor && ['draft', 'rejected'].includes(doc.status)))
+      : (['editor', 'reviewer'].includes(user.role) &&
+         isAuthor &&
+         ['draft', 'rejected'].includes(doc.status)
+        );
+  const canReview = isReviewer && doc.status === 'pending_review';
+  const canDelete =
+    isAdmin
+      ? (doc.status === 'approved' ||
+         (isAuthor && ['draft', 'rejected'].includes(doc.status)))
+      : (['editor', 'reviewer'].includes(user.role) &&
+         isAuthor &&
+         ['draft', 'rejected'].includes(doc.status));
 
   /* ---------- render ---------- */
   if (isEditing && canEdit) {
@@ -268,9 +321,9 @@ export default function DocumentDetailPage() {
 
       <Card className="overflow-hidden shadow-xl">
         {/* Cover */}
-        {doc.imageUrl && !isEditing && (
+        {doc.image_url && !isEditing && (
           <div className="relative h-64 md:h-96 w-full">
-            <Image src={doc.imageUrl} alt={doc.title} fill style={{ objectFit: 'cover' }} />
+            <Image src={doc.image_url} alt={doc.title} fill style={{ objectFit: 'cover' }} />
           </div>
         )}
 
@@ -296,9 +349,7 @@ export default function DocumentDetailPage() {
             <TabsList className="grid max-w-full grid-cols-2 md:grid-cols-3 m-2 md:m-4">
               <TabsTrigger value="details"><Eye className="mr-2 h-4 w-4" />Details</TabsTrigger>
               <TabsTrigger value="history"><History className="mr-2 h-4 w-4" />History</TabsTrigger>
-              {(canReview || isReviewing) && (
-                <TabsTrigger value="reviewActions"><ShieldCheck className="mr-2 h-4 w-4" />Review</TabsTrigger>
-              )}
+              <TabsTrigger value="reviewActions"><ShieldCheck className="mr-2 h-4 w-4" />Review</TabsTrigger>
             </TabsList>
 
             {/* Details */}
@@ -357,11 +408,6 @@ export default function DocumentDetailPage() {
                           {format(new Date(e.timestamp), 'PPP p')}
                         </span>
                       </div>
-                      {e.details && (
-                        <div className="mt-1.5 pl-6 text-xs text-muted-foreground">
-                          {e.details}
-                        </div>
-                      )}
                     </li>
                   ))}
                 </ul>
@@ -371,18 +417,55 @@ export default function DocumentDetailPage() {
             {/* Review */}
             {(canReview || isReviewing) && (
               <TabsContent value="reviewActions" className="p-2 md:p-6">
-                <h3 className="text-xl font-semibold mb-4">Review Actions</h3>
-                {canReview ? (
-                  <ReviewActions
-                    documentId={doc.id}
-                    documentTitle={doc.title}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
-                  />
+                <h3 className="text-xl font-semibold mb-3.5">Review Actions</h3>
+                {isAdmin ? (
+                  canReview ? (
+                    <ReviewActions
+                      documentId={doc.id}
+                      documentTitle={doc.title}
+                      onReassign={handleReassign}
+                      onApprove={handleApprove}
+                      onReject={handleReject}
+                      showReassign={true}
+                      showApprove={true}
+                      showReject={true}
+                    />
+                  ) : (
+                    <>
+                      <p className="mb-4 text-muted-foreground">
+                        You are not the assigned reviewer. The reviewer is {doc.reviewerName || 'not yet assigned'}.
+                      </p>
+                      
+                      <ReviewActions
+                        documentId={doc.id}
+                        documentTitle={doc.title}
+                        onReassign={handleReassign}
+                        onApprove={() => {}}
+                        onReject={() => {}}
+                        showReassign={true}
+                        showApprove={false}
+                        showReject={false}
+                      />
+                      
+                    </>
+                  )
                 ) : (
-                  <p className="text-muted-foreground">
-                    You are not the assigned reviewer or the document is not pending review.
-                  </p>
+                  canReview ? (
+                    <ReviewActions
+                      documentId={doc.id}
+                      documentTitle={doc.title}
+                      onReassign={() => {}}
+                      onApprove={handleApprove}
+                      onReject={handleReject}
+                      showReassign={false}
+                      showApprove={true}
+                      showReject={true}
+                    />
+                  ) : (
+                    <p className="text-muted-foreground">
+                      You are not the assigned reviewer. The reviewer is {doc.reviewerName || 'not yet assigned'}.
+                    </p>
+                  )
                 )}
               </TabsContent>
             )}
@@ -398,6 +481,11 @@ export default function DocumentDetailPage() {
           {canReview && !isReviewing && (
             <Button onClick={enterReviewMode} className="bg-accent hover:bg-accent/90">
               <ShieldCheck className="mr-2 h-4 w-4" /> Review
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="destructive" size="sm" onClick={handleDelete}>
+              <Trash2 className="mr-0.2 h-4 w-4"/>
             </Button>
           )}
         </CardFooter>
