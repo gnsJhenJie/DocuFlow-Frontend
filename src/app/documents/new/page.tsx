@@ -75,7 +75,7 @@ export default function NewDocumentPage() {
       });
 
       // After creating a draft, go to the edit screen so you can continue
-      router.push(`/documents/${newDocument.id}`);
+      router.push(`/documents/view?id=${newDocument.id}`)
     } catch (error: any) {
       console.error(
         `[NewDocumentPage] Error ${

@@ -264,7 +264,7 @@ export default function AdminPage() {
         <AdminDocumentTable
           documents={documents}
           onReassignReviewer={handleReassignReviewer}
-          onViewHistory={(docId) => router.push(`/documents/${docId}?tab=history`)} // Simplified
+          onViewHistory={(docId) => router.push(`/documents/view?id=${docId}&tab=history`)} // Simplified
           isLoading={isLoading && documents.length > 0} // Pass loading for subsequent loads
         />
         {totalPages > 1 && (

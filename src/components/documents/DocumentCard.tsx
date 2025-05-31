@@ -72,7 +72,7 @@ export function DocumentCard({ document, currentUserRole, currentUserId }: Docum
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg leading-tight hover:text-primary transition-colors">
-            <Link href={`/documents/${document.id}`}>{document.title}</Link>
+            <Link href={`/documents/view?id=${document.id}`}>{document.title}</Link>
           </CardTitle>
           <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-2" />
         </div>
@@ -89,20 +89,20 @@ export function DocumentCard({ document, currentUserRole, currentUserId }: Docum
       <CardFooter className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-2 border-t">
         <DocumentStatusBadge status={document.status} />
         <div className="flex gap-2 mt-2 sm:mt-0">
-          <Link href={`/documents/${document.id}`} passHref>
+          <Link href={`/documents/view?id=${document.id}`} passHref>
             <Button variant="outline" size="sm">
               <Eye className="mr-1.5 h-3.5 w-3.5" /> View
             </Button>
           </Link>
           {canEdit && (
-            <Link href={`/documents/${document.id}?edit=true`} passHref>
+            <Link href={`/documents/view?id=${document.id}&edit=true`} passHref>
               <Button variant="secondary" size="sm">
                 <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Edit
               </Button>
             </Link>
           )}
           {canReview && (
-             <Link href={`/documents/${document.id}?review=true`} passHref>
+             <Link href={`/documents/view?id=${document.id}&review=true`} passHref>
               <Button variant="default" size="sm" className="bg-accent hover:bg-accent/90">
                 <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Review
               </Button>

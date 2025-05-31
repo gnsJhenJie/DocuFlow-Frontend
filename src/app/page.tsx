@@ -103,7 +103,7 @@ export default function DashboardPage() {
             imageUrl: doc.image_url,
             imageAlt: doc.title,
             dataAiHint: "document icon",
-            link: `/documents/${doc.id}`
+            link: `/documents/view?id=${doc.id}`,
           }));
         setApprovedItems(derivedApprovedItems);
         if (approvedDocs.length === 0) {
@@ -127,7 +127,7 @@ export default function DashboardPage() {
             imageUrl: doc.image_url,
             imageAlt: doc.title,
             dataAiHint: "document icon",
-            link: `/documents/${doc.id}`
+            link: `/documents/view?id=${doc.id}`
           }));
         setRecentActivities(derivedActivities.length > 0 ? derivedActivities : staticRecentActivities);
       } catch (error) {

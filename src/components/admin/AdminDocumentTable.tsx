@@ -142,7 +142,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
             {documents.map((doc) => (
               <TableRow key={doc.id} className={isLoading ? "opacity-50" : ""}>
                 <TableCell className="font-medium">
-                  <Link href={`/documents/${doc.id}`} className="hover:text-primary hover:underline">
+                  <Link href={`/documents/view?id=${doc.id}`} className="hover:text-primary hover:underline">
                     {doc.title}
                   </Link>
                 </TableCell>
@@ -168,7 +168,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                        <DropdownMenuItem asChild>
-                        <Link href={`/documents/${doc.id}`} className="flex items-center">
+                        <Link href={`/documents/view?id=${doc.id}`} className="flex items-center">
                             <Eye className="mr-2 h-4 w-4" /> View Document
                         </Link>
                        </DropdownMenuItem>
