@@ -1,11 +1,10 @@
-
 name: DocuFlow CI
 
 on:
   push:
-    branches: *
+    branches: "*"
   pull_request:
-    branches: [main] # Adjust if your main branch has a different name
+    branches: "*"
 
 jobs:
   build-and-lint:
@@ -23,7 +22,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm install
