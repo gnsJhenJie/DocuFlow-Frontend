@@ -31,6 +31,7 @@ export function DocumentCard({ document, currentUser }: DocumentCardProps) {
   const isAuthor = document.author_id === Number(currentUser.id);
   const isReviewer = document.reviewer_id === Number(currentUser.id);
   const isAdmin = currentUser.role === 'admin';
+  console.log('image url', document.image_url);
 
   const canEdit = 
     isAdmin
