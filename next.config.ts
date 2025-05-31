@@ -3,6 +3,7 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   // output: 'standalone', // Added for optimized Docker builds
   output: 'export', // Use 'export' for static export builds
+  // trailingSlash: true, // Ensure trailing slashes for static export
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
