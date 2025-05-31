@@ -25,7 +25,7 @@ export function DocumentStatusBadge({ status }: DocumentStatusBadgeProps) {
     <Badge
       variant="outline"
       className={cn(
-        "capitalize px-2.5 py-1 text-xs font-semibold",
+        "capitalize px-2 py-1 text-xs font-semibold",
         statusStyles[status]
       )}
     >

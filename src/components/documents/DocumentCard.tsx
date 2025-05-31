@@ -8,8 +8,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import type { Document } from '@/lib/types';
-import { FileText, Edit3, Eye, ShieldCheck, Trash2, MessageSquareWarning } from 'lucide-react';
+import type { Document, User } from '@/lib/types';
+import { FileText, Edit3, Eye, ShieldCheck, Trash2, UserCheck2, MessageSquareWarning } from 'lucide-react';
 import { DocumentStatusBadge } from './DocumentStatusBadge';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
@@ -17,29 +17,42 @@ import { toast } from '@/hooks/use-toast';
 
 interface DocumentCardProps {
   document: Document;
-  currentUserRole: 'admin' | 'editor' | 'reviewer' | 'viewer'; // To control actions
-  currentUserId: string;
+  // currentUserRole: 'admin' | 'editor' | 'reviewer' | 'viewer'; // To control actions
+  currentUser: User;
 }
 
-export function DocumentCard({ document, currentUserRole, currentUserId }: DocumentCardProps) {
+export function DocumentCard({ document, currentUser }: DocumentCardProps) {
   const [isClient, setIsClient] = useState(false); // State for client-side rendering
 
   useEffect(() => {
     setIsClient(true); // Set to true after component mounts
   }, []);
 
-  const isAuthor = String(document.authorId) === String(currentUserId);
+  const isAuthor = document.author_id === Number(currentUser.id);
+  const isReviewer = document.reviewer_id === Number(currentUser.id);
+  const isAdmin = currentUser.role === 'admin';
+  console.log('image url', document.image_url);
 
-  const canEdit = (currentUserRole !== 'viewer') && (document.status === 'draft' || document.status === 'rejected');
-  const canReview = (currentUserRole === 'reviewer' || currentUserRole === 'admin') && document.status === 'pending_review';
-  const canDelete =
-    currentUserRole === 'admin'
+  const canEdit = 
+    isAdmin
       ? (document.status === 'approved' ||
          (isAuthor && ['draft', 'rejected'].includes(document.status)))
-      : (['editor', 'reviewer'].includes(currentUserRole) &&
+      : (['editor', 'reviewer'].includes(currentUser.role) &&
+         isAuthor &&
+         ['draft', 'rejected'].includes(document.status)
+        );
+  
+  const canReview = (isReviewer || isAdmin) && document.status === 'pending_review';
+  const canDelete =
+    isAdmin
+      ? (document.status === 'approved' ||
+         (isAuthor && ['draft', 'rejected'].includes(document.status)))
+      : (['editor', 'reviewer'].includes(currentUser.role) &&
          isAuthor &&
          ['draft', 'rejected'].includes(document.status));
-  
+
+  // const canReassign = currentUser.role === 'admin' && document.status === 'pending_review';
+
   const router = useRouter();
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) return;
@@ -101,10 +114,17 @@ export function DocumentCard({ document, currentUserRole, currentUserId }: Docum
               </Button>
             </Link>
           )}
-          {canReview && (
-             <Link href={`/documents/view?id=${document.id}&review=true`} passHref>
+          {canReview && isReviewer && (
+             <Link href={`/documents/view?id=${document.id}&review=true&tab=reviewActions`} passHref>
               <Button variant="default" size="sm" className="bg-accent hover:bg-accent/90">
                 <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Review
+              </Button>
+            </Link>
+          )}
+          {canReview && !isReviewer && isAdmin && (
+             <Link href={`/documents/view?id=${document.id}&review=true&tab=reviewActions`} passHref>
+              <Button size="sm" className="bg-accent hover:bg-accent/90">
+                <UserCheck2 className="mr-0.2 h-3.5 w-3.5" /> Reassign
               </Button>
             </Link>
           )}

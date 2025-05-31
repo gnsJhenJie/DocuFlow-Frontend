@@ -79,7 +79,7 @@ export function DocumentForm({
     setValue,
     getValues,
     watch,
-    formState: { errors , dirtyFields },
+    formState: { errors, dirtyFields },
     reset,
   } = useForm<DocumentFormData>({
     resolver: zodResolver(documentSchema),
@@ -105,6 +105,7 @@ export function DocumentForm({
         reviewerId: document.reviewerId != null ? String(document.reviewerId) : '',
       });
       setImagePreview(document.image_url || null);
+      setCoverTouched(false);
     }
   }, [document, reset]);
 
@@ -115,7 +116,11 @@ export function DocumentForm({
         const data = await apiClient.getReviewers();
         setReviewers(data.filter((r) => Number(r.id) !== Number(currentUser.id)));
       } catch (err: any) {
-        toast({ title: 'Error fetching reviewers', description: err.message, variant: 'destructive' });
+        toast({
+          title: 'Error fetching reviewers',
+          description: err.message,
+          variant: 'destructive',
+        });
       } finally {
         setIsLoadingReviewers(false);
       }
@@ -132,7 +137,6 @@ export function DocumentForm({
     if (!editor || !preview) return;
 
     let isSyncing = false;
-
     const sync = (source: 'editor' | 'preview') => {
       if (isSyncing) return;
       isSyncing = true;
@@ -167,10 +171,17 @@ export function DocumentForm({
     formData.append('file', file);
     try {
       const res = await apiClient.uploadImage(formData);
-      toast({ title: 'Image Uploaded', description: `${file.name} uploaded successfully.` });
+      toast({
+        title: 'Image Uploaded',
+        description: `${file.name} uploaded successfully.`,
+      });
       return res.imageUrl;
     } catch (err: any) {
-      toast({ title: 'Image Upload Failed', description: err.message, variant: 'destructive' });
+      toast({
+        title: 'Image Upload Failed',
+        description: err.message,
+        variant: 'destructive',
+      });
       return null;
     } finally {
       setLoading(false);
@@ -197,7 +208,11 @@ export function DocumentForm({
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const content = getValues('content') || '';
-    setValue('content', content.slice(0, start) + markdown + content.slice(end), { shouldValidate: true });
+    setValue(
+      'content',
+      content.slice(0, start) + markdown + content.slice(end),
+      { shouldValidate: true },
+    );
 
     requestAnimationFrame(() => {
       textarea.focus();
@@ -209,7 +224,11 @@ export function DocumentForm({
 
   const processContentImage = async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      toast({ title: 'Invalid File', description: 'Please select an image file.', variant: 'destructive' });
+      toast({
+        title: 'Invalid File',
+        description: 'Please select an image file.',
+        variant: 'destructive',
+      });
       return;
     }
     const url = await handleFileUpload(file, setIsUploadingContentImage);
@@ -238,7 +257,11 @@ export function DocumentForm({
     action: 'save_draft' | 'submit_for_review' | 'resubmit_for_review',
   ) => {
     if (action !== 'save_draft' && !data.reviewerId) {
-      toast({ title: 'Reviewer Required', description: 'Please select a reviewer.', variant: 'destructive' });
+      toast({
+        title: 'Reviewer Required',
+        description: 'Please select a reviewer.',
+        variant: 'destructive',
+      });
       return;
     }
     onSubmit(
@@ -247,13 +270,25 @@ export function DocumentForm({
     );
   };
 
-  const isApproved = document?.status === 'approved';
+  // ---------------------------------------------------------------------
+  // Button Disable Logic
+  // ---------------------------------------------------------------------
+  const status = document?.status;
   const changedSpecific =
     !!dirtyFields.title ||
     !!dirtyFields.content ||
     !!dirtyFields.imageUrl ||
-    !!coverTouched;
-  const shouldDisable = isApproved && !changedSpecific;
+    !!coverTouched ||
+    !!dirtyFields.reviewerId;
+
+  // Save Draft: 当状态为 draft/approved/rejected 且没有更改（包括 reviewerId）时锁定
+  const saveDisabled =
+    (status === 'draft' || status === 'approved' || status === 'rejected') &&
+    !changedSpecific;
+
+  // Submit/Resubmit: 当状态为 approved/rejected 且没有更改时锁定
+  const isLockedStatus = status === 'approved' || status === 'rejected';
+  const submitDisabled = isLockedStatus && !changedSpecific;
 
   const saveAction: 'save_draft' = 'save_draft';
   const submitAction: 'submit_for_review' | 'resubmit_for_review' =
@@ -265,7 +300,9 @@ export function DocumentForm({
   return (
     <Card className="mx-auto w-full max-w-7xl shadow-lg">
       <CardHeader>
-        <CardTitle>{formMode === 'edit' ? 'Edit Document' : 'Create New Document'}</CardTitle>
+        <CardTitle>
+          {formMode === 'edit' ? 'Edit Document' : 'Create New Document'}
+        </CardTitle>
         <CardDescription>
           {formMode === 'edit'
             ? 'Update your document details.'
@@ -273,16 +310,21 @@ export function DocumentForm({
         </CardDescription>
       </CardHeader>
 
-      <form className="space-y-10" onSubmit={handleSubmit((d) => onFormSubmit(d, submitAction))}>
+      <form
+        className="space-y-10"
+        onSubmit={handleSubmit((d) => onFormSubmit(d, submitAction))}
+      >
         <CardContent className="space-y-10">
-          {/* Title ------------------------------------------------------- */}
+          {/* Title */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="title">Title</Label>
             <Input id="title" placeholder="Enter document title" {...register('title')} />
-            {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
+            {errors.title && (
+              <p className="text-sm text-destructive">{errors.title.message}</p>
+            )}
           </div>
 
-          {/* Content ----------------------------------------------------- */}
+          {/* Content */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="content">Content</Label>
             <div className="grid lg:grid-cols-2 gap-6">
@@ -297,9 +339,11 @@ export function DocumentForm({
                     onClick={triggerContentUpload}
                     disabled={isUploadingContentImage}
                   >
-                    {isUploadingContentImage
-                      ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      : <ImagePlus className="mr-2 h-4 w-4" />}
+                    {isUploadingContentImage ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImagePlus className="mr-2 h-4 w-4" />
+                    )}
                     Insert Image
                   </Button>
                 </div>
@@ -317,7 +361,9 @@ export function DocumentForm({
                     />
                   )}
                 />
-                {errors.content && <p className="text-sm text-destructive mt-1">{errors.content.message}</p>}
+                {errors.content && (
+                  <p className="text-sm text-destructive mt-1">{errors.content.message}</p>
+                )}
                 <input
                   ref={contentImageUploadRef}
                   type="file"
@@ -345,7 +391,7 @@ export function DocumentForm({
             </div>
           </div>
 
-          {/* Cover Image -------------------------------------------------- */}
+          {/* Cover Image */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="coverImageUpload">Cover Image (Optional)</Label>
             <div className="flex items-start gap-4">
@@ -363,46 +409,73 @@ export function DocumentForm({
                 onClick={() => coverImageInputRef.current?.click()}
                 disabled={isUploadingCover}
               >
-                {isUploadingCover
-                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  : <UploadCloud className="mr-2 h-4 w-4" />}
+                {isUploadingCover ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <UploadCloud className="mr-2 h-4 w-4" />
+                )}
                 Upload Cover
               </Button>
 
               {imagePreview && (
                 <div className="relative h-24 w-40 overflow-hidden rounded border">
-                  <Image src={imagePreview} alt="Cover preview" fill sizes="160px" style={{ objectFit: 'cover' }} />
+                  <Image
+                    src={imagePreview}
+                    alt="Cover preview"
+                    fill
+                    sizes="160px"
+                    style={{ objectFit: 'cover' }}
+                  />
                   <Button
                     type="button"
                     variant="destructive"
                     size="icon"
                     className="absolute top-1 right-1 opacity-75 hover:opacity-100"
-                    onClick={() => { setImagePreview(null); setValue('imageUrl', ''); }}
+                    onClick={() => {
+                      setImagePreview(null);
+                      setValue('imageUrl', '');
+                      setCoverTouched(true);
+                    }}
                   >
                     <XCircle className="h-4 w-4" />
                   </Button>
                 </div>
               )}
             </div>
-            {errors.imageUrl && <p className="text-sm text-destructive">{errors.imageUrl.message}</p>}
+            {errors.imageUrl && (
+              <p className="text-sm text-destructive">{errors.imageUrl.message}</p>
+            )}
           </div>
 
-          {/* Reviewer Selection ------------------------------------------- */}
-          {(formMode === 'create' || (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
+          {/* Reviewer Selection */}
+          {(formMode === 'create' ||
+            (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
             <div className="flex flex-col gap-2">
               <Label htmlFor="reviewerId">Select Reviewer</Label>
               <Controller
                 name="reviewerId"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value || ''} disabled={isLoadingReviewers || shouldDisable}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || ''}
+                    disabled={isLoadingReviewers || (status !== 'draft' && saveDisabled)}
+                  >
                     <SelectTrigger id="reviewerId">
-                      <SelectValue placeholder={isLoadingReviewers ? 'Loading…' : 'Choose a reviewer'} />
+                      <SelectValue
+                        placeholder={isLoadingReviewers ? 'Loading…' : 'Choose a reviewer'}
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      {isLoadingReviewers && <SelectItem value="loading" disabled>Loading…</SelectItem>}
+                      {isLoadingReviewers && (
+                        <SelectItem value="loading" disabled>
+                          Loading…
+                        </SelectItem>
+                      )}
                       {!isLoadingReviewers && reviewers.length === 0 && (
-                        <SelectItem value="none" disabled>No reviewers available</SelectItem>
+                        <SelectItem value="none" disabled>
+                          No reviewers available
+                        </SelectItem>
                       )}
                       {reviewers.map((r) => (
                         <SelectItem key={r.id} value={String(r.id)}>
@@ -413,12 +486,14 @@ export function DocumentForm({
                   </Select>
                 )}
               />
-              {errors.reviewerId && <p className="text-sm text-destructive">{errors.reviewerId.message}</p>}
+              {errors.reviewerId && (
+                <p className="text-sm text-destructive">{errors.reviewerId.message}</p>
+              )}
             </div>
           )}
         </CardContent>
 
-        {/* Footer Buttons ----------------------------------------------- */}
+        {/* Footer Buttons */}
         <CardFooter className="flex flex-wrap justify-end gap-4 border-t bg-background/50 py-6 backdrop-blur">
           {onCancel && (
             <Button type="button" variant="outline" onClick={onCancel}>
@@ -426,16 +501,28 @@ export function DocumentForm({
             </Button>
           )}
 
-          {(formMode === 'create' || (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
-            <Button type="button" variant="secondary" className="hover:bg-secondary/70" onClick={handleSubmit((d) => onFormSubmit(d, saveAction))} disabled={shouldDisable}>
+          {(formMode === 'create' ||
+            (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="hover:bg-secondary/70"
+              onClick={handleSubmit((d) => onFormSubmit(d, saveAction))}
+              disabled={saveDisabled}
+            >
               <Save className="mr-2 h-4 w-4" /> Save Draft
             </Button>
           )}
 
-          {(formMode === 'create' || (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
-            <Button type="submit" className="bg-primary/100 hover:bg-primary/80" disabled={shouldDisable}>
+          {(formMode === 'create' ||
+            (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
+            <Button
+              type="submit"
+              className="bg-primary/100 hover:bg-primary/80"
+              disabled={submitDisabled}
+            >
               <Send className="mr-2 h-4 w-4" />
-              {formMode === 'create' ? 'Submit for Review' : 'Resubmit'}
+              Submit for Review
             </Button>
           )}
         </CardFooter>

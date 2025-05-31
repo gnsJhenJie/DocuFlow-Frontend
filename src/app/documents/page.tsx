@@ -276,7 +276,7 @@ export default function DocumentsPage() {
               <DocumentCard
                 key={doc.id}
                 document={doc}
-                currentUserRole={user.role}
+                currentUser={user}
               />
             ))}
           </div>

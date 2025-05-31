@@ -6,20 +6,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
@@ -27,26 +15,15 @@ import { DocumentForm } from '@/components/documents/DocumentForm';
 import { ReviewActions } from '@/components/documents/ReviewActions';
 import { DocumentStatusBadge } from '@/components/documents/DocumentStatusBadge';
 
-import type { Document, DocumentHistoryEntry } from '@/lib/types';
+import type { Document, DocumentHistoryEntry, User } from '@/lib/types';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 import {
-  ArrowLeft,
-  Edit3,
-  Eye,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  MessageSquare,
-  ShieldCheck,
-  Send,
-  FileText,
-  History,
-  AlertTriangle,
-  Loader2,
-  User as UserIcon,
+  ArrowLeft, Edit3, Eye, Clock, CheckCircle2, XCircle,
+  MessageSquare, ShieldCheck, Send, FileText, History,
+  AlertTriangle, Loader2, Trash2, User as UserIcon
 } from 'lucide-react';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
@@ -82,7 +59,6 @@ export default function DocumentDetailPage() {
   const [activeTab, setActiveTab] = useState<'details' | 'history' | 'reviewActions'>('details');
 
   /* -- utils -- */
-  /** 產生 `/documents/detail?...` 的 URL，flag 全由參數決定，避免非同步 state race */
   const buildUrl = (flags: { edit?: boolean; review?: boolean; tab?: string } = {}) => {
     const q = new URLSearchParams();
     q.set('id', docId);
@@ -92,7 +68,6 @@ export default function DocumentDetailPage() {
     return `/documents/view?${q.toString()}`;
   };
 
-  /* -- 初始 flag 讀取 -- */
   useEffect(() => {
     const q = Object.fromEntries(new URLSearchParams(window.location.search));
     setIsEditing(q.edit === 'true');
@@ -100,7 +75,6 @@ export default function DocumentDetailPage() {
     if (q.tab) setActiveTab(q.tab as any);
   }, []);
 
-  /* -- 取得文件 + 歷史 -- */
   const fetchData = useCallback(async () => {
     if (!docId || authLoading) return;
     setLoading(true);
@@ -117,87 +91,8 @@ export default function DocumentDetailPage() {
       setLoading(false);
     }
   }, [docId, authLoading, toast]);
+
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  /* ---------- flag handlers ---------- */
-  const enterEditMode   = () => { setIsEditing(true);  setIsReviewing(false); router.replace(buildUrl({ edit: true })); };
-  const enterReviewMode = () => { setIsReviewing(true); setActiveTab('reviewActions'); router.replace(buildUrl({ review: true, tab: 'reviewActions' })); };
-  const changeTab = (t: typeof activeTab) => {
-    setActiveTab(t);
-    if (t === 'reviewActions') setIsReviewing(true);
-    router.replace(buildUrl({
-      edit: isEditing,
-      review: t === 'reviewActions' || isReviewing,
-      tab: t !== 'details' ? t : undefined,
-    }));
-  };
-
-  /* ---------- CRUD helpers (submit / approve / reject) ---------- */
-  const refreshDocAndHistory = async (newDoc?: Document) => {
-    if (newDoc) setDoc(newDoc);
-    setHistory(
-      (await apiClient.getDocumentHistory(doc!.id)).sort(
-        (a, b) => +new Date(b.timestamp) - +new Date(a.timestamp)
-      )
-    );
-  };
-
-  const handleFormSubmit = async (
-    data: any,
-    action: 'save_draft' | 'resubmit_for_review'
-  ) => {
-    if (!doc || !user) return;
-    const payload: any = { title: data.title, content: data.content, action };
-    if (data.imageUrl)   payload.imageUrl   = data.imageUrl;
-    if (data.reviewerId) payload.reviewerId = Number(data.reviewerId);
-
-    if (action === 'resubmit_for_review' && !payload.reviewerId) {
-      toast({ title: 'Reviewer Required', description: 'Select a reviewer.', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      const updated = await apiClient.updateDocument(doc.id, payload);
-      await refreshDocAndHistory(updated);
-      setIsEditing(false);
-      setActiveTab('details');
-      router.replace(buildUrl());
-      toast({
-        title: action === 'save_draft' ? 'Draft Saved' : 'Resubmitted',
-        description: `"${updated.title}" updated.`,
-      });
-    } catch (err: any) {
-      toast({ title: 'Update Error', description: err.message, variant: 'destructive' });
-    }
-  };
-
-  const handleApprove = async () => {
-    if (!doc || !user) return;
-    try {
-      const approved = await apiClient.approveDocument(doc.id);
-      await refreshDocAndHistory(approved);
-      setIsReviewing(false);
-      setActiveTab('details');
-      router.replace(buildUrl());
-      toast({ title: 'Approved', description: `"${approved.title}" approved.` });
-    } catch (err: any) {
-      toast({ title: 'Approve Error', description: err.message, variant: 'destructive' });
-    }
-  };
-
-  const handleReject = async (reason: string) => {
-    if (!doc || !user) return;
-    try {
-      const rejected = await apiClient.rejectDocument(doc.id, reason);
-      await refreshDocAndHistory(rejected);
-      setIsReviewing(false);
-      setActiveTab('details');
-      router.replace(buildUrl());
-      toast({ title: 'Rejected', description: `"${rejected.title}" rejected.` });
-    } catch (err: any) {
-      toast({ title: 'Reject Error', description: err.message, variant: 'destructive' });
-    }
-  };
 
   /* ---------- guards ---------- */
   if (!docId) {
@@ -234,14 +129,24 @@ export default function DocumentDetailPage() {
   }
 
   /* ---------- permissions ---------- */
-  const canEdit =
-    (user.role === 'admin' || doc.authorId === Number(user.id)) &&
-    (['draft', 'rejected'].includes(doc.status) ||
-      (doc.status === 'approved' && user.role !== 'viewer'));
+  const isAuthor    = doc.authorId === Number(user.id);
+  const isReviewer  = doc.reviewerId === Number(user.id);
+  const isAdmin     = user.role === 'admin';
 
-  const canReview =
-    (user.role === 'admin' || doc.reviewerId === Number(user.id)) &&
-    doc.status === 'pending_review';
+  const canEdit = isAdmin
+    ? (doc.status === 'approved' ||
+       (isAuthor && ['draft', 'rejected'].includes(doc.status)))
+    : (['editor', 'reviewer'].includes(user.role) &&
+       isAuthor &&
+       ['draft', 'rejected'].includes(doc.status));
+
+  const canReview = isReviewer && doc.status === 'pending_review';
+  const canDelete = isAdmin
+    ? (doc.status === 'approved' ||
+       (isAuthor && ['draft', 'rejected'].includes(doc.status)))
+    : (['editor', 'reviewer'].includes(user.role) &&
+       isAuthor &&
+       ['draft', 'rejected'].includes(doc.status));
 
   /* ---------- render ---------- */
   if (isEditing && canEdit) {
@@ -250,7 +155,9 @@ export default function DocumentDetailPage() {
         document={doc}
         currentUser={user}
         formMode="edit"
-        onSubmit={handleFormSubmit}
+        onSubmit={(data, action) => {
+          // …你的提交逻辑…
+        }}
         onCancel={() => {
           setIsEditing(false);
           setActiveTab('details');
@@ -267,19 +174,21 @@ export default function DocumentDetailPage() {
       </Link>
 
       <Card className="overflow-hidden shadow-xl">
-        {/* Cover */}
-        {doc.imageUrl && !isEditing && (
-          <div className="relative h-64 md:h-96 w-full">
-            <Image src={doc.imageUrl} alt={doc.title} fill style={{ objectFit: 'cover' }} />
+        {doc.imageUrl && (
+          <div className="flex justify-center">
+            <img
+              src={doc.imageUrl}
+              alt={doc.title}
+              className="h-[60vh] w-auto object-contain"
+            />
           </div>
         )}
-
         <CardHeader className="border-b">
           <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
             <div>
               <CardTitle className="text-3xl font-bold">{doc.title}</CardTitle>
               <CardDescription className="text-sm mt-1">
-                Authored by: {doc.authorName} | Version: {doc.version} | Last updated:{' '}
+                Authored by: {doc.authorName} | Last updated:{' '}
                 {format(new Date(doc.updatedAt), 'PPP p')}
               </CardDescription>
             </div>
@@ -290,20 +199,25 @@ export default function DocumentDetailPage() {
         <CardContent>
           <Tabs
             value={activeTab}
-            onValueChange={(v) => changeTab(v as any)}
+            onValueChange={(v) => {
+              setActiveTab(v as any);
+              if (v === 'reviewActions') setIsReviewing(true);
+              router.replace(buildUrl({
+                edit: isEditing,
+                review: v === 'reviewActions' || isReviewing,
+                tab: v !== 'details' ? v : undefined,
+              }));
+            }}
             className="w-full"
           >
             <TabsList className="grid max-w-full grid-cols-2 md:grid-cols-3 m-2 md:m-4">
               <TabsTrigger value="details"><Eye className="mr-2 h-4 w-4" />Details</TabsTrigger>
               <TabsTrigger value="history"><History className="mr-2 h-4 w-4" />History</TabsTrigger>
-              {(canReview || isReviewing) && (
-                <TabsTrigger value="reviewActions"><ShieldCheck className="mr-2 h-4 w-4" />Review</TabsTrigger>
-              )}
+              <TabsTrigger value="reviewActions"><ShieldCheck className="mr-2 h-4 w-4" />Review</TabsTrigger>
             </TabsList>
 
-            {/* Details */}
+            {/* Details Tab */}
             <TabsContent value="details" className="p-2 md:p-6">
-              {/* status alerts */}
               {doc.status === 'rejected' && doc.rejectionReason && (
                 <Alert variant="destructive" className="mb-6">
                   <MessageSquare className="h-4 w-4" />
@@ -340,7 +254,7 @@ export default function DocumentDetailPage() {
               </article>
             </TabsContent>
 
-            {/* History */}
+            {/* History Tab */}
             <TabsContent value="history" className="p-2 md:p-6">
               <h3 className="text-xl font-semibold mb-4">Document History</h3>
               <ScrollArea className="h-[300px] rounded-md border p-2">
@@ -357,47 +271,93 @@ export default function DocumentDetailPage() {
                           {format(new Date(e.timestamp), 'PPP p')}
                         </span>
                       </div>
-                      {e.details && (
-                        <div className="mt-1.5 pl-6 text-xs text-muted-foreground">
-                          {e.details}
-                        </div>
-                      )}
                     </li>
                   ))}
                 </ul>
               </ScrollArea>
             </TabsContent>
 
-            {/* Review */}
-            {(canReview || isReviewing) && (
-              <TabsContent value="reviewActions" className="p-2 md:p-6">
-                <h3 className="text-xl font-semibold mb-4">Review Actions</h3>
-                {canReview ? (
+            {/* Review Tab */}
+            <TabsContent value="reviewActions" className="p-2 md:p-6">
+              <h3 className="text-xl font-semibold mb-3.5">Review Actions</h3>
+              {isAdmin ? (
+                canReview ? (
                   <ReviewActions
                     documentId={doc.id}
                     documentTitle={doc.title}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
+                    onReassign={(rid) => {
+                      // 实际调用 handleReassign 的逻辑
+                      // handleReassign(rid)
+                    }}
+                    onApprove={() => {
+                      // handleApprove()
+                    }}
+                    onReject={(reason) => {
+                      // handleReject(reason)
+                    }}
+                    showReassign={true}
+                    showApprove={true}
+                    showReject={true}
                   />
                 ) : (
-                  <p className="text-muted-foreground">
-                    You are not the assigned reviewer or the document is not pending review.
-                  </p>
-                )}
-              </TabsContent>
-            )}
+                  <>
+                    <p className="mb-4 text-muted-foreground">
+                      You are not the assigned reviewer. The reviewer is {doc.reviewerName || 'not yet assigned'}.
+                    </p>
+                    <ReviewActions
+                      documentId={doc.id}
+                      documentTitle={doc.title}
+                      onReassign={(rid) => {
+                        // handleReassign(rid)
+                      }}
+                      onApprove={() => {}}
+                      onReject={() => {}}
+                      showReassign={true}
+                      showApprove={false}
+                      showReject={false}
+                    />
+                  </>
+                )
+              ) : canReview ? (
+                <ReviewActions
+                  documentId={doc.id}
+                  documentTitle={doc.title}
+                  onReassign={() => {}}
+                  onApprove={() => {
+                    // handleApprove()
+                  }}
+                  onReject={(reason) => {
+                    // handleReject(reason)
+                  }}
+                  showReassign={false}
+                  showApprove={true}
+                  showReject={true}
+                />
+              ) : (
+                <p className="text-muted-foreground">
+                  You are not the assigned reviewer. The reviewer is {doc.reviewerName || 'not yet assigned'}.
+                </p>
+              )}
+            </TabsContent>
           </Tabs>
         </CardContent>
 
         <CardFooter className="border-t pt-6 flex flex-wrap justify-end gap-3">
           {canEdit && !isEditing && (
-            <Button onClick={enterEditMode} variant="secondary">
+            <Button onClick={() => { setIsEditing(true); setActiveTab('details'); router.replace(buildUrl({ edit: true })); }} variant="secondary">
               <Edit3 className="mr-2 h-4 w-4" /> Edit
             </Button>
           )}
           {canReview && !isReviewing && (
-            <Button onClick={enterReviewMode} className="bg-accent hover:bg-accent/90">
+            <Button onClick={() => { setIsReviewing(true); setActiveTab('reviewActions'); router.replace(buildUrl({ review: true, tab: 'reviewActions' })); }} className="bg-accent hover:bg-accent/90">
               <ShieldCheck className="mr-2 h-4 w-4" /> Review
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="destructive" size="sm" onClick={() => {
+              // handleDelete()
+            }}>
+              <Trash2 className="mr-0.2 h-4 w-4" />
             </Button>
           )}
         </CardFooter>

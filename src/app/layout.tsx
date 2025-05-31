@@ -3,6 +3,8 @@ import { Inter as FontSans } from 'next/font/google'; // Using Inter as a more c
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { Suspense } from 'react';
+import { Loader2 } from 'lucide-react';
 
 const fontSans = FontSans({
   subsets: ['latin'],
@@ -29,7 +31,14 @@ export default function RootLayout({
           fontSans.variable
         )}
       >
-        <AppLayout>{children}</AppLayout>
+        <Suspense fallback={
+          <div className="flex h-screen items-center justify-center bg-background">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="ml-3 text-lg text-muted-foreground">Loading Application...</p>
+          </div>
+        }>
+          <AppLayout>{children}</AppLayout>
+        </Suspense>
       </body>
     </html>
   );
