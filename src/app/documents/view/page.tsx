@@ -163,7 +163,7 @@ export default function DocumentDetailPage() {
       setActiveTab('details');
       router.replace(buildUrl());
       toast({
-        title: action === 'save_draft' ? 'Draft Saved' : 'Resubmitted',
+        title: action === 'save_draft' ? 'Draft Saved' : 'Submitted',
         description: `"${updated.title}" updated.`,
       });
     } catch (err: any) {
