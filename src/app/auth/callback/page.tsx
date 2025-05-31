@@ -24,6 +24,7 @@ function OAuthCallbackContent() {
     const errorDescription = searchParams.get('error_description');
 
     console.log('[OAuthCallback] Received query params:', { code, error, errorDescription });
+    console.log('[OAuthCallback] Current authLoading state:', authLoading);
 
     if (error) {
       console.error('[OAuthCallback] Google OAuth Error:', errorDescription || error);
@@ -36,25 +37,51 @@ function OAuthCallbackContent() {
       return;
     }
 
-    if (code && !authLoading && !exchangedRef.current) {
-      exchangedRef.current = true;                  // 先鎖住
+    if (authLoading) {
+      console.log('[OAuthCallback] Auth is still loading, waiting before exchanging code...');
+      return;
+    }
+
+    if (code && !exchangedRef.current) {
+      exchangedRef.current = true; // Lock to prevent multiple exchanges
+      console.log('[OAuthCallback] Exchanging Google code for token...');
       apiClient.exchangeGoogleCode(code)
         .then(res => {
-          loginWithTokenAndUser(res.token, res.user);
-          /** 成功後直接跳到首頁 (或你想要的路由) */
-          router.replace('/');                      // ← code 被移除，之後不會再觸發
+          console.log('[OAuthCallback] Code exchange response from backend:', res);
+          if (res && res.token && res.user) {
+            loginWithTokenAndUser(res.token, res.user);
+            // DO NOT redirect here, AuthContext's loginWithTokenAndUser will handle it
+            // based on the stored redirect path.
+            // router.replace('/'); // This was overriding the AuthContext redirect
+          } else {
+            exchangedRef.current = false; // Unlock on failure
+            console.error('[OAuthCallback] Token or user data missing in backend response:', res);
+            toast({
+              title: 'Login Failed',
+              description: 'Received incomplete data from authentication server.',
+              variant: 'destructive',
+            });
+            router.replace('/login');
+          }
         })
         .catch(err => {
-          exchangedRef.current = false;            // 失敗才解鎖
+          exchangedRef.current = false; // Unlock on failure
+          const errorMessage = err.response?.data?.detail || err.message || 'An unknown error occurred during code exchange.';
+          console.error('[OAuthCallback] Code exchange API call failed:', errorMessage, err);
           toast({
             title: 'Login Failed',
-            description: err.message,
+            description: errorMessage,
             variant: 'destructive',
           });
           router.replace('/login');
         });
+    } else if (!code && !error) {
+        console.log('[OAuthCallback] No code or error found in query params. Redirecting to login.');
+        if (!authLoading) { // Only redirect if auth is not loading, to prevent premature redirect
+            router.replace('/login');
+        }
     }
-  }, [searchParams, loginWithTokenAndUser, router, toast, authLoading]); // Added authLoading to dependency array
+  }, [searchParams, loginWithTokenAndUser, router, toast, authLoading]); // Added authLoading
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background">
