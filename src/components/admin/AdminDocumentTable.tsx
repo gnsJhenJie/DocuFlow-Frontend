@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import type { Document, User } from '@/lib/types';
 import { MoreHorizontal, Eye, UserCheck2, History, Trash2, Loader2 } from 'lucide-react';
 import { DocumentStatusBadge } from '@/components/documents/DocumentStatusBadge';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, set } from 'date-fns';
 import Link from 'next/link';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose
@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiClient } from '@/lib/apiClient'; // Import apiClient
 import { useRouter } from 'next/navigation'; // Import useRouter
+import { se } from 'date-fns/locale';
 
 interface AdminDocumentTableProps {
   documents: Document[];
@@ -34,6 +35,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
   const [newReviewerId, setNewReviewerId] = useState<string>('');
   const [potentialReviewers, setPotentialReviewers] = useState<User[]>([]);
   const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -72,6 +74,11 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
     setShowReassignModal(true);
   };
 
+  const handleOpenDeleteModal = (docId: string, docTitle: string) => {
+    setSelectedDocument({ id: docId, title: docTitle } as Document); // Cast to Document type
+    setShowDeleteModal(true);
+  };
+
   const handleConfirmReassign = async () => {
     if (selectedDocument && newReviewerId) {
       await onReassignReviewer(selectedDocument.id, newReviewerId); // newReviewerId is string here
@@ -86,19 +93,30 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
     }
   };
   
-  const handleDeleteDocument = async (docId: string, docTitle: string) => {
-      if(window.confirm(`Are you sure you want to delete document: "${docTitle}"? This action cannot be undone.`)) {
-          try {
-              await apiClient.deleteDocument(docId);
-              toast({ title: "Document Deleted", description: `"${docTitle}" has been deleted.`});
-              // TODO: Need a way to refresh the document list in the parent component (AdminPage)
-              // This could be done by passing a refresh function as a prop.
-              // For now, user has to manually refresh or filter again.
-              router.refresh(); // Next.js 13+ way to refresh server components / data
-          } catch (error: any) {
-              toast({ title: "Error Deleting Document", description: error.message, variant: "destructive"});
-          }
-      }
+  const handleDeleteDocument = async () => {
+      // if(window.confirm(`Are you sure you want to delete document: "${docTitle}"? This action cannot be undone.`)) {
+    setShowDeleteModal(false);
+    try {
+      await apiClient.deleteDocument(selectedDocument?.id || '');
+      toast({
+        title: 'Document Deleted',
+        description: `"${selectedDocument?.title}" has been successfully deleted.`,
+        variant: 'success',
+      });
+      window.location.reload(); // Reload to reflect changes
+      // TODO: Need a way to refresh the document list in the parent component (AdminPage)
+        // This could be done by passing a refresh function as a prop.
+        // For now, user has to manually refresh or filter again.
+      // Next.js 13+ way to refresh server components / data
+    } catch (error: any) {
+      // alert(`Error Deleting Document: ${error.message}`);
+      toast({
+        title: 'Error Deleting Document',
+        description: error.message || 'An error occurred while deleting the document.',
+        variant: 'destructive',
+      });
+    }
+      // }
   };
 
   if (isLoading && documents.length === 0) { // Initial loading skeleton
@@ -182,7 +200,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                        <DropdownMenuItem 
-                         onClick={() => handleDeleteDocument(doc.id, doc.title)}
+                         onClick={() => handleOpenDeleteModal(doc.id, doc.title)}
                          className="text-destructive focus:text-destructive focus:bg-destructive/10"
                         //  disabled={(doc.status === 'pending_review')} // Per API spec: Admin can delete any draft. Authors also.
                        >
@@ -233,6 +251,26 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
                 <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
             <Button type="button" onClick={handleConfirmReassign} disabled={isLoadingReviewers || !newReviewerId}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Deleting Document: {selectedDocument?.title}</DialogTitle>
+            <DialogDescription>
+                Are you sure you want to delete this document?<br/>
+                This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button type="button" onClick={handleDeleteDocument} variant="destructive">
+                Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
