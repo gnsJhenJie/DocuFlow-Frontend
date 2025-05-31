@@ -11,7 +11,7 @@ env:
   CF_DISTRIBUTION: E1UXL1NTSYTMEN
 
 jobs:
-  build and deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
