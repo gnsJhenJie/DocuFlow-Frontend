@@ -430,6 +430,8 @@ export default function DocumentDetailPage() {
                         showReassign={true}
                         showApprove={true}
                         showReject={true}
+                        currentUserId={user.id}
+                        currentReviewerId={doc.reviewerId}
                       />
                     ) : (
                       <>
@@ -446,6 +448,8 @@ export default function DocumentDetailPage() {
                           showReassign={true}
                           showApprove={false}
                           showReject={false}
+                          currentUserId={user.id}
+                          currentReviewerId={doc.reviewerId}
                         />
                         
                       </>
@@ -461,6 +465,8 @@ export default function DocumentDetailPage() {
                         showReassign={false}
                         showApprove={true}
                         showReject={true}
+                        currentUserId={user.id}
+                        currentReviewerId={doc.reviewerId}
                       />
                     ) : (
                       <p className="text-muted-foreground">
