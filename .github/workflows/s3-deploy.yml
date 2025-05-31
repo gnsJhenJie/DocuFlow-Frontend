@@ -2,7 +2,7 @@ name: Deploy frontend static site
 
 on:
   push:
-    branches: ["prod"]
+    branches: [prod]
 
 env:
   AWS_REGION: ap-northeast-1
@@ -28,7 +28,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::819498957810:role/github-actions
+          role-to-assume: arn:aws:iam::819498957810:role/DocuFlow-Frontend-Github-Actions
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Sync to S3
