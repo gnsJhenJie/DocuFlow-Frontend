@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 import { DocumentForm } from '@/components/documents/DocumentForm';
@@ -57,10 +58,9 @@ export default function DocumentDetailPage() {
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
   const [potentialReviewers, setPotentialReviewers] = useState<User[]>([]);
-  const [newReviewerId, setNewReviewerId] = useState<string>('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   /* -- utils -- */
-  /** 產生 `/documents/detail?...` 的 URL，flag 全由參數決定，避免非同步 state race */
   const buildUrl = (flags: { edit?: boolean; review?: boolean; tab?: string } = {}) => {
     const q = new URLSearchParams();
     q.set('id', docId);
@@ -70,7 +70,6 @@ export default function DocumentDetailPage() {
     return `/documents/view?${q.toString()}`;
   };
 
-  /* -- 初始 flag 讀取 -- */
   useEffect(() => {
     const q = Object.fromEntries(new URLSearchParams(window.location.search));
     setIsEditing(q.edit === 'true');
@@ -78,7 +77,6 @@ export default function DocumentDetailPage() {
     if (q.tab) setActiveTab(q.tab as any);
   }, []);
 
-  /* -- 取得文件 + 歷史 -- */
   const fetchData = useCallback(async () => {
     if (!docId || authLoading) return;
     setLoading(true);
@@ -111,15 +109,16 @@ export default function DocumentDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) return;
+    // if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) return;
     try {
       await apiClient.deleteDocument(doc.id);
+      router.push('/documents');
       toast({
         title: 'Document Deleted',
         description: `"${doc.title}" has been successfully deleted.`,
         variant: 'success',
       });
-      window.location.reload();
+      // window.location.reload();
     } catch (err: any) {
       alert(`Error Deleting Document: ${err.message}`);
     }
@@ -184,13 +183,6 @@ export default function DocumentDetailPage() {
       fetchReviewersForModal();
     }
   }, [showReassignModal, doc]);
-
-
-  const handleOpenReassignModal = (document: Document) => {
-    setDoc(document);
-    setNewReviewerId(document.reviewer_id || ''); // Pre-select current reviewer if any
-    setShowReassignModal(true);
-  };
 
   const handleReassign = async (newReviewerId: string) => {
     if (!doc || !newReviewerId) return;
@@ -277,7 +269,6 @@ export default function DocumentDetailPage() {
   const isAuthor = doc.authorId === Number(user.id);
   const isReviewer = doc.reviewerId === Number(user.id);
   const isAdmin = user.role === 'admin';
-  console.log('[DocumentDetailPage] isAuthor:', isAuthor, 'isReviewer:', isReviewer, 'isAdmin:', isAdmin);
 
   const canEdit =
     isAdmin
@@ -314,13 +305,13 @@ export default function DocumentDetailPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 md:px-0">
-      <Link href="/documents" className="mb-6 inline-block">
-        <Button className="mb-6"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Documents</Button>
-      </Link>
+    <>
+      <div className="container mx-auto py-8 px-4 md:px-0">
+        <Link href="/documents" className="mb-6 inline-block">
+          <Button className="mb-6"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Documents</Button>
+        </Link>
 
       <Card className="overflow-hidden shadow-xl">
-        {/* Cover */}
         {doc.imageUrl && (
           <div className="flex justify-center">
             <img
@@ -330,7 +321,6 @@ export default function DocumentDetailPage() {
             />
           </div>
         )}
-
         <CardHeader className="border-b">
           <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
             <div>
@@ -364,144 +354,165 @@ export default function DocumentDetailPage() {
               <TabsTrigger value="reviewActions"><ShieldCheck className="mr-2 h-4 w-4" />Review</TabsTrigger>
             </TabsList>
 
-            {/* Details */}
-            <TabsContent value="details" className="p-2 md:p-6">
-              {/* status alerts */}
-              {doc.status === 'rejected' && doc.rejectionReason && (
-                <Alert variant="destructive" className="mb-6">
-                  <MessageSquare className="h-4 w-4" />
-                  <AlertTitle>
-                    Rejected on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP') : 'N/A'} by{' '}
-                    {doc.reviewerName || 'Reviewer'}
-                  </AlertTitle>
-                  <AlertDescription>Reason: {doc.rejectionReason}</AlertDescription>
-                </Alert>
-              )}
-              {doc.status === 'pending_review' && (
-                <Alert variant="default" className="mb-6 bg-yellow-50 border-yellow-300 text-yellow-700">
-                  <Clock className="h-4 w-4" />
-                  <AlertTitle>Pending Review</AlertTitle>
-                  <AlertDescription>
-                    Submitted on {doc.submittedAt ? format(new Date(doc.submittedAt), 'PPP') : 'N/A'}; awaiting{' '}
-                    {doc.reviewerName || 'reviewer'}.
-                  </AlertDescription>
-                </Alert>
-              )}
-              {doc.status === 'approved' && (
-                <Alert variant="default" className="mb-6 bg-green-50 border-green-300 text-green-700">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <AlertTitle>Approved</AlertTitle>
-                  <AlertDescription>
-                    Approved on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP') : 'N/A'} by{' '}
-                    {doc.reviewerName || 'Reviewer'}.
-                  </AlertDescription>
-                </Alert>
-              )}
+              {/* Details Tab */}
+              <TabsContent value="details" className="p-2 md:p-6">
+                  {doc.status === 'rejected' && doc.rejectionReason && (
+                  <Alert variant="destructive" className="mb-6">
+                    <MessageSquare className="h-4 w-4" />
+                    <AlertTitle>
+                      Rejected on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP') : 'N/A'} by{' '}
+                      {doc.reviewerName || 'Reviewer'}
+                    </AlertTitle>
+                    <AlertDescription>Reason: {doc.rejectionReason}</AlertDescription>
+                  </Alert>
+                )}
+                {doc.status === 'pending_review' && (
+                  <Alert variant="default" className="mb-6 bg-yellow-50 border-yellow-300 text-yellow-700">
+                    <Clock className="h-4 w-4" />
+                    <AlertTitle>Pending Review</AlertTitle>
+                    <AlertDescription>
+                      Submitted on {doc.submittedAt ? format(new Date(doc.submittedAt), 'PPP') : 'N/A'}; awaiting{' '}
+                      {doc.reviewerName || 'reviewer'}.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {doc.status === 'approved' && (
+                  <Alert variant="default" className="mb-6 bg-green-50 border-green-300 text-green-700">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertTitle>Approved</AlertTitle>
+                    <AlertDescription>
+                      Approved on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP') : 'N/A'} by{' '}
+                      {doc.reviewerName || 'Reviewer'}.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-              <article className="prose prose-sm sm:prose-base lg:prose-lg xl:prose-xl max-w-none p-1">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
-              </article>
-            </TabsContent>
+                <article className="prose prose-sm sm:prose-base lg:prose-lg xl:prose-xl max-w-none p-1">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
+                </article>
+              </TabsContent>
 
-            {/* History */}
-            <TabsContent value="history" className="p-2 md:p-6">
-              <h3 className="text-xl font-semibold mb-4">Document History</h3>
-              <ScrollArea className="h-[300px] rounded-md border p-2">
-                <ul className="space-y-3">
-                  {history.map((e) => (
-                    <li key={e.id} className="p-3 bg-muted/50 rounded-md shadow-sm">
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          {getActionIcon(e.action)}
-                          <span className="font-medium capitalize">{e.action.replace(/_/g, ' ')}</span>
-                          <span>by {e.userName}</span>
+              {/* History */}
+              <TabsContent value="history" className="p-2 md:p-6">
+                <h3 className="text-xl font-semibold mb-4">Document History</h3>
+                <ScrollArea className="h-[300px] rounded-md border p-2">
+                  <ul className="space-y-3">
+                    {history.map((e) => (
+                      <li key={e.id} className="p-3 bg-muted/50 rounded-md shadow-sm">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            {getActionIcon(e.action)}
+                            <span className="font-medium capitalize">{e.action.replace(/_/g, ' ')}</span>
+                            <span>by {e.userName}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(e.timestamp), 'PPP p')}
+                          </span>
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(e.timestamp), 'PPP p')}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </ScrollArea>
-            </TabsContent>
+                      </li>
+                    ))}
+                  </ul>
+                </ScrollArea>
+              </TabsContent>
 
-            {/* Review */}
-            {(canReview || isReviewing) && (
-              <TabsContent value="reviewActions" className="p-2 md:p-6">
-                <h3 className="text-xl font-semibold mb-3.5">Review Actions</h3>
-                {isAdmin ? (
-                  canReview ? (
-                    <ReviewActions
-                      documentId={doc.id}
-                      documentTitle={doc.title}
-                      onReassign={handleReassign}
-                      onApprove={handleApprove}
-                      onReject={handleReject}
-                      showReassign={true}
-                      showApprove={true}
-                      showReject={true}
-                    />
-                  ) : (
-                    <>
-                      <p className="mb-4 text-muted-foreground">
-                        You are not the assigned reviewer. The reviewer is {doc.reviewerName || 'not yet assigned'}.
-                      </p>
-                      
+              {/* Review */}
+              {(canReview || isReviewing) && (
+                <TabsContent value="reviewActions" className="p-2 md:p-6">
+                  <h3 className="text-xl font-semibold mb-3.5">Review Actions</h3>
+                  {isAdmin ? (
+                    canReview ? (
                       <ReviewActions
                         documentId={doc.id}
                         documentTitle={doc.title}
                         onReassign={handleReassign}
-                        onApprove={() => {}}
-                        onReject={() => {}}
+                        onApprove={handleApprove}
+                        onReject={handleReject}
                         showReassign={true}
-                        showApprove={false}
-                        showReject={false}
+                        showApprove={true}
+                        showReject={true}
                       />
-                      
-                    </>
-                  )
-                ) : (
-                  canReview ? (
-                    <ReviewActions
-                      documentId={doc.id}
-                      documentTitle={doc.title}
-                      onReassign={() => {}}
-                      onApprove={handleApprove}
-                      onReject={handleReject}
-                      showReassign={false}
-                      showApprove={true}
-                      showReject={true}
-                    />
+                    ) : (
+                      <>
+                        <p className="mb-4 text-muted-foreground">
+                          You are not the assigned reviewer. The reviewer is {doc.reviewerName || 'not yet assigned'}.
+                        </p>
+                        
+                        <ReviewActions
+                          documentId={doc.id}
+                          documentTitle={doc.title}
+                          onReassign={handleReassign}
+                          onApprove={() => {}}
+                          onReject={() => {}}
+                          showReassign={true}
+                          showApprove={false}
+                          showReject={false}
+                        />
+                        
+                      </>
+                    )
                   ) : (
-                    <p className="text-muted-foreground">
-                      You are not the assigned reviewer. The reviewer is {doc.reviewerName || 'not yet assigned'}.
-                    </p>
-                  )
-                )}
-              </TabsContent>
-            )}
-          </Tabs>
-        </CardContent>
+                    canReview ? (
+                      <ReviewActions
+                        documentId={doc.id}
+                        documentTitle={doc.title}
+                        onReassign={() => {}}
+                        onApprove={handleApprove}
+                        onReject={handleReject}
+                        showReassign={false}
+                        showApprove={true}
+                        showReject={true}
+                      />
+                    ) : (
+                      <p className="text-muted-foreground">
+                        You are not the assigned reviewer. The reviewer is {doc.reviewerName || 'not yet assigned'}.
+                      </p>
+                    )
+                  )}
+                </TabsContent>
+              )}
+            </Tabs>
+          </CardContent>
 
-        <CardFooter className="border-t pt-6 flex flex-wrap justify-end gap-3">
-          {canEdit && !isEditing && (
-            <Button onClick={enterEditMode} variant="secondary">
-              <Edit3 className="mr-2 h-4 w-4" /> Edit
+          <CardFooter className="border-t pt-6 flex flex-wrap justify-end gap-3">
+            {canEdit && !isEditing && (
+              <Button onClick={enterEditMode} variant="secondary">
+                <Edit3 className="mr-2 h-4 w-4" /> Edit
+              </Button>
+            )}
+            {canReview && !isReviewing && (
+              <Button onClick={enterReviewMode} className="bg-accent hover:bg-accent/90">
+                <ShieldCheck className="mr-2 h-4 w-4" /> Review
+              </Button>
+            )}
+            {canDelete && (
+              <Button variant="destructive" size="sm" onClick={() => setShowDeleteModal(true)}>
+                <Trash2 className="mr-0.2 h-4 w-4"/>
+              </Button>
+            )}
+          </CardFooter>
+        </Card>
+      </div>
+
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Deleting Document: {doc.title}</DialogTitle>
+            <DialogDescription>
+                Are you sure you want to delete this document?<br/>
+                This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button type="button" onClick={handleDelete} variant="destructive">
+                Delete
             </Button>
-          )}
-          {canReview && !isReviewing && (
-            <Button onClick={enterReviewMode} className="bg-accent hover:bg-accent/90">
-              <ShieldCheck className="mr-2 h-4 w-4" /> Review
-            </Button>
-          )}
-          {canDelete && (
-            <Button variant="destructive" size="sm" onClick={handleDelete}>
-              <Trash2 className="mr-0.2 h-4 w-4"/>
-            </Button>
-          )}
-        </CardFooter>
-      </Card>
-    </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
+
