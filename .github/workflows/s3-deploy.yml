@@ -7,7 +7,7 @@ on:
 env:
   AWS_REGION: ap-northeast-1
   AWS_ACCOUNT_ID: "819498957810"
-  S3_BUCKET: nycu-docuflow-frontend
+  S3_BUCKET: nycu-docuflow
   CF_DISTRIBUTION: E1UXL1NTSYTMEN
 
 jobs:
