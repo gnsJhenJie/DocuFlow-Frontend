@@ -9,6 +9,7 @@ env:
   AWS_ACCOUNT_ID: "819498957810"
   S3_BUCKET: nycu-docuflow
   CF_DISTRIBUTION: E1UXL1NTSYTMEN
+  NEXT_PUBLIC_API_BASE_URL: "https://docuflow.nycu.edu.tw/api" # Production API URL
 
 jobs:
   build-and-deploy:
@@ -28,6 +29,8 @@ jobs:
         run: |
           npm ci
           npm run build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ env.NEXT_PUBLIC_API_BASE_URL }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
