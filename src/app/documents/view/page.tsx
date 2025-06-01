@@ -344,7 +344,7 @@ export default function DocumentDetailPage() {
                 edit: isEditing,
                 review: v === 'reviewActions' || isReviewing,
                 tab: v !== 'details' ? v : undefined,
-              }));
+              }), { scroll: false });
             }}
             className="w-full"
           >
