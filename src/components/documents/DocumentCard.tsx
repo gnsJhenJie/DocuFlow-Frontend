@@ -58,13 +58,14 @@ export function DocumentCard({ document, currentUser }: DocumentCardProps) {
     // if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) return;
     try {
       await apiClient.deleteDocument(document.id);
-      window.location.reload();
+      // window.location.reload();
       // router.push('/documents');
       toast({
         title: 'Document Deleted',
         description: `"${document.title}" has been successfully deleted.`,
         variant: 'success',
       });
+      router.push(`/documents`)
     } catch (err: any) {
       alert(`Error Deleting Document: ${err.message}`);
     }

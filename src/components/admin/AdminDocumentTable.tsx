@@ -103,7 +103,8 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
         description: `"${selectedDocument?.title}" has been successfully deleted.`,
         variant: 'success',
       });
-      window.location.reload(); // Reload to reflect changes
+      router.push(`/admin`)
+      // window.location.reload(); // Reload to reflect changes
       // TODO: Need a way to refresh the document list in the parent component (AdminPage)
         // This could be done by passing a refresh function as a prop.
         // For now, user has to manually refresh or filter again.
