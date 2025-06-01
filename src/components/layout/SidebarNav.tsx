@@ -131,23 +131,34 @@ export function SidebarNav() {
 
   const renderNavItem = (item: NavItem) => {
     if (item.roles && !item.roles.includes(user.role)) return null;
-    const baseItemPath = item.href.split('?')[0];
+    const [baseItemPath, itemQueryString] = item.href.split('?');
     const currentBasePath = pathname.split('?')[0];
+    const currentQueryString = currentSearchParams.toString();
     let isActive = false;
 
-    if (item.href === '/') {
-      isActive = currentBasePath === '/' && currentSearchParams.toString() === '';
+    if (baseItemPath === '/') {
+      isActive = currentBasePath === '/' && currentQueryString === '';
     } else {
-      isActive = currentBasePath === baseItemPath;
-      if (isActive && item.href.includes('?')) {
-        const itemParams = new URLSearchParams(item.href.split('?')[1]);
-        itemParams.forEach((val, key) => {
-          if (currentSearchParams.get(key) !== val) isActive = false;
-        });
-        if (itemParams.has('view') && currentSearchParams.get('view') !== itemParams.get('view')) isActive = false;
-        if (!itemParams.has('view') && currentSearchParams.get('view')) isActive = false;
+      if (currentBasePath === baseItemPath) {
+        if (itemQueryString) {
+          const itemParams = new URLSearchParams(itemQueryString);
+          let allMatch = true;
+          itemParams.forEach((val, key) => {
+            if (currentSearchParams.get(key) !== val) {
+              allMatch = false;
+            }
+          });
+          isActive = allMatch;
+        } else {
+          if (baseItemPath === '/documents') {
+            isActive = (currentQueryString === '');
+          } else {
+            isActive = true;
+          }
+        }
       }
     }
+      
 
     const badge = item.badgeCountKey ? dynamicCounts[item.badgeCountKey] : undefined;
 
