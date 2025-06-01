@@ -33,29 +33,7 @@ interface ApprovedItem {
   link?: string;
 }
 
-const staticRecentActivities: ActivityItem[] = [
-  {
-    id: 'activity1',
-    text: 'System update: Document review process streamlined.',
-    imageUrl: 'https://placehold.co/48x48.png',
-    imageAlt: 'System update icon',
-    dataAiHint: 'system update',
-    timestamp: '2 days ago',
-  },
-  {
-    id: 'activity2',
-    text: 'User "Alice Wonderland" joined the platform as an Admin.',
-    timestamp: '1 day ago',
-  },
-  {
-    id: 'activity3',
-    text: 'New feature: Markdown support in document content.',
-    imageUrl: 'https://placehold.co/48x48.png',
-    imageAlt: 'Markdown logo',
-    dataAiHint: 'markdown logo',
-    timestamp: '3 hours ago',
-  },
-];
+const staticRecentActivities: ActivityItem[] = [];
 
 function getIconFromStatus(text: string) {
   if (text.includes('approved')) return <CheckCircle2 className="h-5 w-5 text-green-500" />;
