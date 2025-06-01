@@ -84,16 +84,6 @@ export default function DashboardPage() {
             link: `/documents/view?id=${doc.id}`,
           }));
         setApprovedItems(derivedApprovedItems);
-        if (approvedDocs.length === 0) {
-          setApprovedItems([{
-            id: 'no-approved-docs',
-            text: 'No documents have been approved yet.',
-            imageUrl: 'https://placehold.co/48x48.png',
-            imageAlt: 'No approved documents icon',
-            dataAiHint: 'no approved documents',
-            timestamp: format(new Date(), "MMMM do, yyyy h:mm a", { locale: enUS }),
-          }]);
-        }
 
         const derivedActivities = allDocs
           .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())

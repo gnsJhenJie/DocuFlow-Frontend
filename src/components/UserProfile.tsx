@@ -88,20 +88,16 @@ export function UserProfile() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {user.role === 'admin' && (
-          <DropdownMenuItem asChild>
-            <Link href="/admin" className="flex items-center">
-              <Shield className="mr-2 h-4 w-4" />
-              Admin Panel
-            </Link>
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem asChild>
+              <Link href="/admin" className="flex items-center">
+                <Shield className="mr-2 h-4 w-4" />
+                Admin Panel
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
         )}
-        <DropdownMenuItem asChild>
-          <Link href="/settings" className="flex items-center">
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={logout}>
           <LogOut className="mr-2 h-4 w-4" />
           Log out
