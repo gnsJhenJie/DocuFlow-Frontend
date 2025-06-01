@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { Inter as FontSans } from 'next/font/google'; // Using Inter as a more common professional font
 import './globals.css';
@@ -5,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
+import { ThemeProvider } from '@/contexts/ThemeContext'; // Import ThemeProvider
 
 const fontSans = FontSans({
   subsets: ['latin'],
@@ -24,21 +26,22 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        // Added to address potential hydration errors caused by browser extensions modifying body attributes
         suppressHydrationWarning={true}
         className={cn(
           'min-h-screen bg-background font-sans antialiased',
           fontSans.variable
         )}
       >
-        <Suspense fallback={
-          <div className="flex h-screen items-center justify-center bg-background">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="ml-3 text-lg text-muted-foreground">Loading Application...</p>
-          </div>
-        }>
-          <AppLayout>{children}</AppLayout>
-        </Suspense>
+        <ThemeProvider> {/* Wrap with ThemeProvider */}
+          <Suspense fallback={
+            <div className="flex h-screen items-center justify-center bg-background">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="ml-3 text-lg text-muted-foreground">Loading Application...</p>
+            </div>
+          }>
+            <AppLayout>{children}</AppLayout>
+          </Suspense>
+        </ThemeProvider>
       </body>
     </html>
   );
