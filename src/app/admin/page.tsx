@@ -92,6 +92,12 @@ export default function AdminPage() {
     }
   }, [user, authLoading, buildApiParams, toast]);
 
+  // 把一個「父元件用來告訴 fetch 新名單」的 callback 傳下去
+  const handleDocumentsChanged = () => {
+    // 這裡就只是再跑一次 fetchAdminData
+    fetchAdminData();
+  };
+
   useEffect(() => {
     if (!authLoading && (!user || user.role !== 'admin')) {
       console.log('[AdminPage] User not admin or not logged in, redirecting.');
@@ -265,6 +271,7 @@ export default function AdminPage() {
           documents={documents}
           onReassignReviewer={handleReassignReviewer}
           onViewHistory={(docId) => router.push(`/documents/view?id=${docId}&tab=history`)} // Simplified
+          onDocumentsChanged={handleDocumentsChanged}
           isLoading={isLoading && documents.length > 0} // Pass loading for subsequent loads
         />
         {totalPages > 1 && (

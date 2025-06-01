@@ -26,10 +26,11 @@ interface AdminDocumentTableProps {
   documents: Document[];
   onReassignReviewer: (documentId: string, newReviewerId: string) => Promise<void>;
   onViewHistory: (documentId: string) => void;
+  onDocumentsChanged: () => void; // 新增這個 prop，告訴父元件名單有更新
   isLoading?: boolean;
 }
 
-export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistory, isLoading }: AdminDocumentTableProps) {
+export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistory, onDocumentsChanged, isLoading }: AdminDocumentTableProps) {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [newReviewerId, setNewReviewerId] = useState<string>('');
@@ -54,6 +55,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
       // Filter out the document's current author from the list of potential new reviewers
       setPotentialReviewers(fetchedReviewers.filter(rev => rev.id !== selectedDocument?.author_id));
     } catch (error: any) {
+      
       toast({ title: "Error fetching reviewers", description: error.message, variant: "destructive" });
     } finally {
       setIsLoadingReviewers(false);
@@ -101,16 +103,12 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
       toast({
         title: 'Document Deleted',
         description: `"${selectedDocument?.title}" has been successfully deleted.`,
-        variant: 'success',
+        variant: 'default',
       });
-      router.push(`/admin`)
-      // window.location.reload(); // Reload to reflect changes
-      // TODO: Need a way to refresh the document list in the parent component (AdminPage)
-        // This could be done by passing a refresh function as a prop.
-        // For now, user has to manually refresh or filter again.
-      // Next.js 13+ way to refresh server components / data
+      onDocumentsChanged();
     } catch (error: any) {
       // alert(`Error Deleting Document: ${error.message}`);
+      console.error('Error deleting document:', error);
       toast({
         title: 'Error Deleting Document',
         description: error.message || 'An error occurred while deleting the document.',
