@@ -419,8 +419,16 @@ export default function DocumentDetailPage() {
               {(canReview || isReviewing) && (
                 <TabsContent value="reviewActions" className="p-2 md:p-6">
                   <h3 className="text-xl font-semibold mb-3.5">Review Actions</h3>
-                  {isAdmin ? (
-                    canReview ? (
+                  {doc.status === 'approved' ? (
+                    /* If the document is already approved, display a message and no buttons */
+                    <p className="mb-4 text-muted-foreground">
+                      The document has been approved by {doc.reviewerName || 'Unknown Reviewer'}.
+                    </p>
+
+                  ) : isAdmin ? (
+                    /* Current user is an Admin */
+                    isReviewer ? (
+                      /* Admin and also the assigned reviewer: show all buttons */
                       <ReviewActions
                         documentId={doc.id}
                         documentTitle={doc.title}
@@ -434,45 +442,41 @@ export default function DocumentDetailPage() {
                         currentReviewerId={doc.reviewerId}
                       />
                     ) : (
+                      /* Admin but not the assigned reviewer: show message and only the Reassign button */
                       <>
                         <p className="mb-4 text-muted-foreground">
                           You are not the assigned reviewer. The reviewer is {doc.reviewerName || 'not yet assigned'}.
                         </p>
-                        
                         <ReviewActions
                           documentId={doc.id}
                           documentTitle={doc.title}
                           onReassign={handleReassign}
-                          onApprove={() => {}}
-                          onReject={() => {}}
                           showReassign={true}
                           showApprove={false}
                           showReject={false}
                           currentUserId={user.id}
                           currentReviewerId={doc.reviewerId}
                         />
-                        
                       </>
                     )
+                  ) : isReviewer ? (
+                    /* Not an Admin, but is the assigned reviewer: show Approve and Reject buttons */
+                    <ReviewActions
+                      documentId={doc.id}
+                      documentTitle={doc.title}
+                      onApprove={handleApprove}
+                      onReject={handleReject}
+                      showReassign={false}
+                      showApprove={true}
+                      showReject={true}
+                      currentUserId={user.id}
+                      currentReviewerId={doc.reviewerId}
+                    />
                   ) : (
-                    canReview ? (
-                      <ReviewActions
-                        documentId={doc.id}
-                        documentTitle={doc.title}
-                        onReassign={() => {}}
-                        onApprove={handleApprove}
-                        onReject={handleReject}
-                        showReassign={false}
-                        showApprove={true}
-                        showReject={true}
-                        currentUserId={user.id}
-                        currentReviewerId={doc.reviewerId}
-                      />
-                    ) : (
-                      <p className="text-muted-foreground">
-                        You are not the assigned reviewer. The reviewer is {doc.reviewerName || 'not yet assigned'}.
-                      </p>
-                    )
+                    /* Neither Admin nor assigned reviewer: display a message only */
+                    <p className="mb-4 text-muted-foreground">
+                      You are not the assigned reviewer. The reviewer is {doc.reviewerName || 'not yet assigned'}.
+                    </p>
                   )}
                 </TabsContent>
               )}
