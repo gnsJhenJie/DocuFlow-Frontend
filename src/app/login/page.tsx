@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,10 +15,24 @@ import { AppLogo } from '@/components/AppLogo';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/apiClient';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (loading) return;
+    if (user) {
+      router.replace('/'); 
+    }
+  }, [user, loading, router]);
+
+  if (loading || user) {
+    return null;
+  }
 
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
@@ -41,7 +56,6 @@ export default function LoginPage() {
       });
       setIsGoogleLoading(false);
     }
-    // On success, the browser navigates to Google and never returns here.
   };
 
   return (
@@ -94,10 +108,6 @@ export default function LoginPage() {
             <span>Continue with Google</span>
           </Button>
         </CardContent>
-
-        {/* <CardFooter className="text-center text-sm text-muted-foreground pb-6">
-          Only Google login is supported for now.
-        </CardFooter> */}
       </Card>
     </div>
   );
