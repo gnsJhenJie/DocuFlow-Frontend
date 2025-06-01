@@ -56,7 +56,8 @@ async function request<T>(
         errorData = { detail: response.statusText || 'An unknown error occurred', responseBody: textError.substring(0, 500) };
       }
       console.error('API Error:', endpoint, response.status, errorData);
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      return errorData as T; // Return error data instead of throwing
+      // throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
     }
 
     if (response.status === 204 || response.headers.get('content-length') === '0') {
@@ -66,6 +67,7 @@ async function request<T>(
   } catch (error) {
     console.error(`API request failed for ${endpoint} to ${fullUrl}:`, error);
     throw error; // Re-throw to be caught by calling function
+    // return (error as any) as T; // Return error as T to avoid breaking the flow
   }
 }
 

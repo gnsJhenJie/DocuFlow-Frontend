@@ -93,6 +93,10 @@ export default function DocumentsPage() {
     return params;
   }, [currentPage, searchTerm, sortBy, statusFilter, viewFilter, user]);
 
+  const handleDocumentDeleted = (deletedId: string) => {
+    setDocuments((prev) => prev.filter((doc) => doc.id !== deletedId));
+  };
+  
   const fetchDocuments = useCallback(async () => {
     if (!user || authLoading) return;
     setIsLoading(true);
@@ -197,7 +201,7 @@ export default function DocumentsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search documents..."
+              placeholder="Search by title, content, author, reviewer..."
               className="pl-10"
               value={searchTerm}
               onChange={(e) => {
@@ -277,6 +281,7 @@ export default function DocumentsPage() {
                 key={doc.id}
                 document={doc}
                 currentUser={user}
+                onDeleteSuccess={handleDocumentDeleted}
               />
             ))}
           </div>

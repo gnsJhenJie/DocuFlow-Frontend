@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiClient } from '@/lib/apiClient';
 import { useToast } from '@/hooks/use-toast';
+import { CheckCircle2 } from 'lucide-react';
 
 const DOCUMENTS_PER_PAGE = 10;
 
@@ -92,6 +93,12 @@ export default function AdminPage() {
     }
   }, [user, authLoading, buildApiParams, toast]);
 
+  // 把一個「父元件用來告訴 fetch 新名單」的 callback 傳下去
+  const handleDocumentsChanged = () => {
+    // 這裡就只是再跑一次 fetchAdminData
+    fetchAdminData();
+  };
+
   useEffect(() => {
     if (!authLoading && (!user || user.role !== 'admin')) {
       console.log('[AdminPage] User not admin or not logged in, redirecting.');
@@ -167,6 +174,16 @@ export default function AdminPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Approved Documents</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-6 w-6 animate-spin"/> : stats.approved}</div>
+            <p className="text-xs text-muted-foreground">Published and accessible</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
             <Filter className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -183,16 +200,6 @@ export default function AdminPage() {
             <div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.users}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">System Health</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">Optimal</div>
-             <p className="text-xs text-muted-foreground">System health check via API needed</p>
-          </CardContent>
-        </Card>
       </div>
 
 
@@ -207,7 +214,7 @@ export default function AdminPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                 type="search"
-                placeholder="Search by title, author, reviewer..."
+                placeholder="Search by title, content, author, reviewer..."
                 className="pl-10"
                 value={searchTerm}
                 onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
@@ -265,6 +272,7 @@ export default function AdminPage() {
           documents={documents}
           onReassignReviewer={handleReassignReviewer}
           onViewHistory={(docId) => router.push(`/documents/view?id=${docId}&tab=history`)} // Simplified
+          onDocumentsChanged={handleDocumentsChanged}
           isLoading={isLoading && documents.length > 0} // Pass loading for subsequent loads
         />
         {totalPages > 1 && (

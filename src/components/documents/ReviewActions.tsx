@@ -1,3 +1,4 @@
+// src/components/documents/ReviewActions.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,21 +6,34 @@ import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, XCircle, UserCheck2, MessageSquare } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { CheckCircle2, XCircle, UserCheck2 } from 'lucide-react';
 
 import type { User } from '@/lib/types';
 import { apiClient } from '@/lib/apiClient';
 
-import { on } from 'events';
-import { set } from 'date-fns';
-
 interface ReviewActionsProps {
   documentId: string;
   documentTitle: string;
-  onReassign: () => void; // Optional reassign handler
+  currentUserId: string;
+  currentReviewerId: string | null;
+  onReassign: (newReviewerId: string) => void;
   onApprove: () => void;
   onReject: (reason: string) => void;
   showReassign: boolean;
@@ -27,7 +41,18 @@ interface ReviewActionsProps {
   showReject: boolean;
 }
 
-export function ReviewActions({ documentId, documentTitle, onReassign, onApprove, onReject, showReassign, showApprove, showReject }: ReviewActionsProps) {
+export function ReviewActions({
+  documentId,
+  documentTitle,
+  currentUserId,
+  currentReviewerId,
+  onReassign,
+  onApprove,
+  onReject,
+  showReassign,
+  showApprove,
+  showReject,
+}: ReviewActionsProps) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [newReviewerId, setNewReviewerId] = useState<string>('');
@@ -40,8 +65,13 @@ export function ReviewActions({ documentId, documentTitle, onReassign, onApprove
     const fetchReviewers = async () => {
       setIsLoadingReviewers(true);
       try {
-        const reviewers = await apiClient.getReviewers(); // 假設你有這個 API
-        setPotentialReviewers(reviewers);
+        const data: User[] = await apiClient.getReviewers();
+        let filtered = data;
+        filtered = filtered.filter((r) => Number(r.id) !== Number(currentUserId));
+        if (currentReviewerId) {
+          filtered = filtered.filter((r) => Number(r.id) !== Number(currentReviewerId));
+        }
+        setPotentialReviewers(filtered);
       } catch (error) {
         console.error('Error fetching reviewers:', error);
       } finally {
@@ -50,68 +80,73 @@ export function ReviewActions({ documentId, documentTitle, onReassign, onApprove
     };
 
     fetchReviewers();
-  }, []);
+  }, [currentUserId, currentReviewerId]);
 
-  const handleReassign = () => {
-    console.log(`[ReviewActions] Reassigning document ${documentId}`);
+  const handleReassignClick = () => {
+    if (!newReviewerId) {
+      toast({
+        title: 'Reviewer Required',
+        description: 'Please select a new reviewer before reassigning.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    console.log(`[ReviewActions] Reassigning document ${documentId} to user ${newReviewerId}`);
     onReassign(newReviewerId);
     setShowReassignModal(false);
-    toast({
-      title: "Document Reassigned",
-      description: `"${documentTitle}" has been reassigned.`,
-      variant: "default", // Or success if preferred
-    });
-  };
-  
-  const handleApprove = () => {
-    console.log(`[ReviewActions] Approving document ${documentId}`);
-    onApprove();
-    toast({
-      title: "Document Approved",
-      description: `"${documentTitle}" has been approved.`,
-    });
   };
 
-  const handleReject = () => {
+  const handleApproveClick = () => {
+    console.log(`[ReviewActions] Approving document ${documentId}`);
+    onApprove();
+  };
+
+  const handleRejectClick = () => {
     if (!rejectionReason.trim()) {
       toast({
-        title: "Rejection Reason Required",
-        description: "Please provide a reason for rejecting the document.",
-        variant: "destructive",
+        title: 'Rejection Reason Required',
+        description: 'Please provide a reason for rejecting the document.',
+        variant: 'destructive',
       });
       return;
     }
     console.log(`[ReviewActions] Rejecting document ${documentId} with reason: ${rejectionReason}`);
     onReject(rejectionReason);
     setShowRejectModal(false);
-    setRejectionReason(''); // Clear reason after submission
-    toast({
-      title: "Document Rejected",
-      description: `"${documentTitle}" has been rejected.`,
-      variant: "default", // Or destructive if preferred
-    });
+    setRejectionReason('');
   };
 
   return (
     <>
+      {/* —— 操作按鈕 (Reassign / Approve / Reject) —— */}
       <div className="flex gap-4">
         {showReassign && (
-          <Button className="bg-accent hover:bg-accent/90" onClick={() => setShowReassignModal(true)}>
+          <Button
+            className="bg-accent hover:bg-accent/90"
+            onClick={() => setShowReassignModal(true)}
+          >
             <UserCheck2 className="mr-2 h-4 w-4" /> Reassign
           </Button>
         )}
         {showApprove && (
-          <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700 text-white">
+          <Button
+            onClick={handleApproveClick}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
             <CheckCircle2 className="mr-2 h-4 w-4" /> Approve
           </Button>
         )}
         {showReject && (
-          <Button variant="destructive" onClick={() => setShowRejectModal(true)}>
+          <Button
+            variant="destructive"
+            onClick={() => setShowRejectModal(true)}
+          >
             <XCircle className="mr-2 h-4 w-4" /> Reject
           </Button>
         )}
       </div>
 
+      {/* —— Reject Modal —— */}
       <Dialog open={showRejectModal} onOpenChange={setShowRejectModal}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -131,17 +166,18 @@ export function ReviewActions({ documentId, documentTitle, onReassign, onApprove
           </div>
           <DialogFooter>
             <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
+              <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
-            <Button type="button" onClick={handleReject} variant="destructive">
-                Submit Rejection
+            <Button type="button" onClick={handleRejectClick} variant="destructive">
+              Submit Rejection
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* —— Reassign Modal —— */}
       <Dialog open={showReassignModal} onOpenChange={setShowReassignModal}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Reassign Reviewer</DialogTitle>
             <DialogDescription>
@@ -150,33 +186,56 @@ export function ReviewActions({ documentId, documentTitle, onReassign, onApprove
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="newReviewer" className="text-right col-span-1">
+              <Label htmlFor="newReviewer" className="text-center pl-2">
                 New Reviewer
               </Label>
               <div className="col-span-3">
-                <Select value={newReviewerId} onValueChange={setNewReviewerId} disabled={isLoadingReviewers}>
-                    <SelectTrigger id="newReviewer">
-                    <SelectValue placeholder={isLoadingReviewers ? "Loading..." : "Select a reviewer"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingReviewers && <SelectItem value="loading" disabled>Loading reviewers...</SelectItem>}
-                      {!isLoadingReviewers && potentialReviewers.length === 0 && <SelectItem value="no_reviewers" disabled>No eligible reviewers</SelectItem>}
-                      {potentialReviewers.map(rev => (
-                          <SelectItem key={rev.id} value={rev.id}>
-                            {rev.name} ({rev.email})
-                          </SelectItem>
-                      ))}
-                    </SelectContent>
+                <Select
+                  value={newReviewerId}
+                  onValueChange={setNewReviewerId}
+                  disabled={isLoadingReviewers}
+                >
+                  <SelectTrigger
+                    id="newReviewer"
+                    className="w-full justify-between px-2 rounded-md border-gray-300 bg-white text-left"
+                  >
+                    <SelectValue
+                      placeholder={isLoadingReviewers ? 'Loading…' : 'Select a reviewer'}
+                      className="text-left pl-2"
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingReviewers && (
+                      <SelectItem value="loading" disabled>
+                        Loading reviewers…
+                      </SelectItem>
+                    )}
+                    {!isLoadingReviewers && potentialReviewers.length === 0 && (
+                      <SelectItem value="none" disabled>
+                        No eligible reviewers
+                      </SelectItem>
+                    )}
+                    {!isLoadingReviewers && potentialReviewers.map((rev) => (
+                      <SelectItem key={rev.id} value={rev.id}>
+                        {rev.name} ({rev.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
+              <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
-            <Button type="button" onClick={handleReassign} variant="default" className="bg-accent hover:bg-accent/90">
-                Reassign
+            <Button
+              type="button"
+              onClick={handleReassignClick}
+              variant="default"
+              className="bg-accent hover:bg-accent/90"
+            >
+              Reassign
             </Button>
           </DialogFooter>
         </DialogContent>
