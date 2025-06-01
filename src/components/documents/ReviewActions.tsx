@@ -191,7 +191,7 @@ export function ReviewActions({
 
       {/* —— Reassign Modal —— */}
       <Dialog open={showReassignModal} onOpenChange={setShowReassignModal}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Reassign Reviewer</DialogTitle>
             <DialogDescription>
@@ -200,7 +200,7 @@ export function ReviewActions({
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="newReviewer" className="text-right col-span-1">
+              <Label htmlFor="newReviewer" className="text-center pl-2">
                 New Reviewer
               </Label>
               <div className="col-span-3">
@@ -209,9 +209,13 @@ export function ReviewActions({
                   onValueChange={setNewReviewerId}
                   disabled={isLoadingReviewers}
                 >
-                  <SelectTrigger id="newReviewer">
+                  <SelectTrigger
+                    id="newReviewer"
+                    className="w-full justify-between px-2 rounded-md border-gray-300 bg-white text-left"
+                  >
                     <SelectValue
                       placeholder={isLoadingReviewers ? 'Loading…' : 'Select a reviewer'}
+                      className="text-left pl-2"
                     />
                   </SelectTrigger>
                   <SelectContent>
