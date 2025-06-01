@@ -7,7 +7,6 @@ import {
   Home,
   FileText,
   Users,
-  Settings,
   MailCheck,
   ShieldAlert,
   Files,
@@ -22,16 +21,11 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
-  SidebarGroup,
-  SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import type { User } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { apiClient } from '@/lib/apiClient';
-import { clearAllModuleContexts } from 'next/dist/server/lib/render-server';
 
 interface NavItem {
   href: string;
@@ -53,10 +47,33 @@ interface DynamicCounts {
 }
 
 const navItemsBase: NavItem[] = [
-  { href: '/', label: 'Dashboard', icon: Home, roles: ['viewer', 'editor', 'reviewer', 'admin'] },
-  { href: '/documents', label: 'Documents', icon: Files, roles: ['viewer', 'editor', 'reviewer', 'admin'], badgeCountKey: 'allDocumentsCount' },
-  { href: '/documents?view=my_documents', label: 'My Documents', icon: FileText, roles: ['editor', 'reviewer', 'admin'], badgeCountKey: 'myDocumentsCount' },
-  { href: '/documents?view=pending_my_review', label: 'Pending My Review', icon: MailCheck, roles: ['reviewer', 'admin'], badgeCountKey: 'pendingMyReviewCount' },
+  {
+    href: '/',
+    label: 'Dashboard',
+    icon: Home,
+    roles: ['viewer', 'editor', 'reviewer', 'admin'],
+  },
+  {
+    href: '/documents',
+    label: 'Documents',
+    icon: Files,
+    roles: ['viewer', 'editor', 'reviewer', 'admin'],
+    badgeCountKey: 'allDocumentsCount',
+  },
+  {
+    href: '/documents?view=my_documents',
+    label: 'My Documents',
+    icon: FileText,
+    roles: ['editor', 'reviewer', 'admin'],
+    badgeCountKey: 'myDocumentsCount',
+  },
+  {
+    href: '/documents?view=pending_my_review',
+    label: 'Pending My Review',
+    icon: MailCheck,
+    roles: ['reviewer', 'admin'],
+    badgeCountKey: 'pendingMyReviewCount',
+  },
   {
     href: '/admin',
     label: 'Admin Panel',
@@ -65,17 +82,16 @@ const navItemsBase: NavItem[] = [
     subItems: [
       { href: '/admin', label: 'All Documents', icon: Files, roles: ['admin'] },
       { href: '/admin/users', label: 'User Management', icon: Users, roles: ['admin'] },
-    ]
+    ],
   },
 ];
-
-const cachedCounts: Record<string, DynamicCounts> = {};
 
 export function SidebarNav() {
   const pathname = usePathname();
   const currentSearchParams = useSearchParams();
   const searchParamsString = currentSearchParams.toString();
   const { user, loading: authLoading } = useAuth();
+
   const [dynamicCounts, setDynamicCounts] = useState<DynamicCounts>({
     pendingReviewCount: 0,
     draftCount: 0,
@@ -86,7 +102,6 @@ export function SidebarNav() {
     allDocumentsCount: 0,
   });
   const [loadingCounts, setLoadingCounts] = useState(true);
-  const firstLoadRef = useRef(true);
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -112,7 +127,12 @@ export function SidebarNav() {
           if (doc.status === 'pending_review') counts.pendingReviewCount++;
           if (doc.status === 'approved') counts.approvedCount++;
           if (doc.status === 'rejected') counts.rejectedCount++;
-          if (doc.reviewer_id === Number(user.id) && doc.status === 'pending_review') counts.pendingMyReviewCount++;
+          if (
+            doc.reviewer_id === Number(user.id) &&
+            doc.status === 'pending_review'
+          ) {
+            counts.pendingMyReviewCount++;
+          }
           if (doc.author_id === Number(user.id)) counts.myDocumentsCount++;
         }
 
@@ -124,19 +144,20 @@ export function SidebarNav() {
       }
     };
 
-    if (user && !authLoading) fetchCounts();
+    if (user && !authLoading) {
+      fetchCounts();
+    }
   }, [user, authLoading, pathname, searchParamsString]);
 
-
-  const renderNavItem = (item: NavItem) => {
-    if (item.roles && !item.roles.includes(user.role)) return null;
+  const getIsActive = (item: NavItem): boolean => {
     const [baseItemPath, itemQueryString] = item.href.split('?');
     const currentBasePath = pathname.split('?')[0];
     const currentQueryString = currentSearchParams.toString();
-    let isActive = false;
 
     if (baseItemPath === '/') {
-      isActive = currentBasePath === '/' && currentQueryString === '';
+      if (currentBasePath === '/' && currentQueryString === '') {
+        return true;
+      }
     } else {
       if (currentBasePath === baseItemPath) {
         if (itemQueryString) {
@@ -147,23 +168,39 @@ export function SidebarNav() {
               allMatch = false;
             }
           });
-          isActive = allMatch;
+          if (allMatch) {
+            return true;
+          }
         } else {
           if (baseItemPath === '/documents') {
-            isActive = (currentQueryString === '');
+            if (currentQueryString === '') {
+              return true;
+            }
           } else {
-            isActive = true;
+            return true;
           }
         }
       }
     }
-      
 
+    if (item.subItems) {
+      return item.subItems.some(sub => getIsActive(sub));
+    }
+
+    return false;
+  };
+
+  const renderNavItem = (item: NavItem) => {
+    if (item.roles && !item.roles.includes(user.role)) {
+      return null;
+    }
+
+    const isActive = getIsActive(item);
     const badge = item.badgeCountKey ? dynamicCounts[item.badgeCountKey] : undefined;
 
     const renderSubItems = item.subItems?.length ? (
       <SidebarMenuSub>
-        {item.subItems.map((sub) => renderNavItem(sub))}
+        {item.subItems.map(sub => renderNavItem(sub))}
       </SidebarMenuSub>
     ) : null;
 
@@ -176,7 +213,9 @@ export function SidebarNav() {
             {loadingCounts && item.badgeCountKey ? (
               <Loader2 className="ml-auto h-4 w-4 animate-spin" />
             ) : badge ? (
-              <Badge variant="secondary" className="ml-auto">{badge}</Badge>
+              <Badge variant="secondary" className="ml-auto">
+                {badge}
+              </Badge>
             ) : null}
           </SidebarMenuButton>
         </Link>
@@ -185,9 +224,14 @@ export function SidebarNav() {
     );
   };
 
-  const renderStatusItem = (label: string, icon: React.ElementType, status: keyof DynamicCounts, href: string) => {
-    const params = new URLSearchParams(href.split('?')[1]);
-    const isActive = pathname.startsWith(href.split('?')[0]) && currentSearchParams.get('status') === params.get('status') && !currentSearchParams.get('view');
+  const renderStatusItem = (
+    label: string,
+    icon: React.ElementType,
+    status: keyof DynamicCounts,
+    href: string
+  ) => {
+    const fakeNavItem: NavItem = { href, label, icon };
+    const isActive = getIsActive(fakeNavItem);
     const count = dynamicCounts[status];
 
     return (
@@ -199,7 +243,9 @@ export function SidebarNav() {
             {loadingCounts ? (
               <Loader2 className="ml-auto h-4 w-4 animate-spin" />
             ) : count > 0 ? (
-              <Badge variant="outline" className="ml-auto">{count}</Badge>
+              <Badge variant="outline" className="ml-auto">
+                {count}
+              </Badge>
             ) : null}
           </SidebarMenuButton>
         </Link>
@@ -217,17 +263,20 @@ export function SidebarNav() {
   return (
     <div className="flex flex-col h-full">
       <SidebarMenu className="flex-1">
-        {navItemsBase.map((item) => renderNavItem(item))}
+        {navItemsBase.map(item => renderNavItem(item))}
       </SidebarMenu>
+
       {(user.role === 'editor' || user.role === 'reviewer' || user.role === 'admin') && (
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel>Document Statuses</SidebarGroupLabel>
+        <div className="mt-auto">
+          <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+            Document Statuses
+          </div>
           <SidebarMenu>
             {statusItems.map(([label, icon, key, href]) =>
               renderStatusItem(label, icon, key, href)
             )}
           </SidebarMenu>
-        </SidebarGroup>
+        </div>
       )}
     </div>
   );
