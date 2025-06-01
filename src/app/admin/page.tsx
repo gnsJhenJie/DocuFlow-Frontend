@@ -214,7 +214,7 @@ export default function AdminPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                 type="search"
-                placeholder="Search by title, author, reviewer..."
+                placeholder="Search by title, content, author, reviewer..."
                 className="pl-10"
                 value={searchTerm}
                 onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
