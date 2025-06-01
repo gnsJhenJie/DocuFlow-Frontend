@@ -103,6 +103,9 @@ export const apiClient = {
     if (payload.reviewerId && typeof payload.reviewerId === 'string') {
       payload.reviewerId = parseInt(payload.reviewerId, 10);
     }
+    if (payload.authorId && typeof payload.authorId === 'string') {
+      payload.authorId = parseInt(payload.authorId, 10);
+    }
     return request<Document>(`/documents/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
   },
   deleteDocument: (id: string) => request<{ message: string }>(`/documents/${id}`, { method: 'DELETE' }),

@@ -139,9 +139,10 @@ export default function DocumentDetailPage() {
     action: 'save_draft' | 'resubmit_for_review'
   ) => {
     if (!doc || !user) return;
-    const payload: any = { title: data.title, content: data.content, action };
+    const payload: any = { title: data.title, content: data.content, authorId: data.authorId, action };
     if (data.imageUrl)   payload.imageUrl   = data.imageUrl;
     if (data.reviewerId) payload.reviewerId = Number(data.reviewerId);
+    if (data.authorId)  payload.authorId  = Number(data.authorId);
 
     if (action === 'resubmit_for_review' && !payload.reviewerId) {
       toast({ title: 'Reviewer Required', description: 'Select a reviewer.', variant: 'destructive' });
