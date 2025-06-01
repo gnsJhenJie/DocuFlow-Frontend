@@ -211,7 +211,7 @@ export function DocumentForm({
     setValue(
       'content',
       content.slice(0, start) + markdown + content.slice(end),
-      { shouldValidate: true },
+      { shouldValidate: true , shouldDirty: true },
     );
 
     requestAnimationFrame(() => {
