@@ -93,6 +93,10 @@ export default function DocumentsPage() {
     return params;
   }, [currentPage, searchTerm, sortBy, statusFilter, viewFilter, user]);
 
+  const handleDocumentDeleted = (deletedId: string) => {
+    setDocuments((prev) => prev.filter((doc) => doc.id !== deletedId));
+  };
+  
   const fetchDocuments = useCallback(async () => {
     if (!user || authLoading) return;
     setIsLoading(true);
@@ -277,6 +281,7 @@ export default function DocumentsPage() {
                 key={doc.id}
                 document={doc}
                 currentUser={user}
+                onDeleteSuccess={handleDocumentDeleted}
               />
             ))}
           </div>

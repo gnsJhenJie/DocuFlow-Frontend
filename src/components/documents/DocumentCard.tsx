@@ -18,11 +18,11 @@ import { toast } from '@/hooks/use-toast';
 
 interface DocumentCardProps {
   document: Document;
-  // currentUserRole: 'admin' | 'editor' | 'reviewer' | 'viewer'; // To control actions
   currentUser: User;
+  onDeleteSuccess: (deletedId: string) => void;
 }
 
-export function DocumentCard({ document, currentUser }: DocumentCardProps) {
+export function DocumentCard({ document, currentUser, onDeleteSuccess }: DocumentCardProps) {
   const [isClient, setIsClient] = useState(false); // State for client-side rendering
 
   useEffect(() => {
@@ -58,14 +58,15 @@ export function DocumentCard({ document, currentUser }: DocumentCardProps) {
     // if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) return;
     try {
       await apiClient.deleteDocument(document.id);
-      // window.location.reload();
-      // router.push('/documents');
+      setShowDeleteModal(false);
+      
       toast({
         title: 'Document Deleted',
         description: `"${document.title}" has been successfully deleted.`,
-        variant: 'success',
+        variant: 'default',
       });
-      router.push(`/documents`)
+      onDeleteSuccess(document.id);
+    
     } catch (err: any) {
       alert(`Error Deleting Document: ${err.message}`);
     }
