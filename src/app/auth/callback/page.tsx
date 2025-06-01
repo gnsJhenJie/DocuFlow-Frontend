@@ -69,7 +69,7 @@ function OAuthCallbackContent() {
         });
     }
     else if (!code && !error) {
-      console.log('[OAuthCallback] 沒有 code 也沒有 error，將導回 /login');
+      console.log('[OAuthCallback] No code or error found in query params. Redirecting to login.');
       router.replace('/login');
     }
   }, [searchParams, user, authLoading, loginWithTokenAndUser, router, toast]);
