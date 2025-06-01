@@ -387,7 +387,7 @@ export default function DocumentDetailPage() {
                   </Alert>
                 )}
 
-                <article className="prose prose-sm sm:prose-base lg:prose-lg xl:prose-xl max-w-none p-1">
+                <article className="prose dark:prose-invert prose-sm sm:prose-base lg:prose-lg xl:prose-xl max-w-none p-1">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
                 </article>
               </TabsContent>
