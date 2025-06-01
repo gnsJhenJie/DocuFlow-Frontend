@@ -94,20 +94,11 @@ export function ReviewActions({
     console.log(`[ReviewActions] Reassigning document ${documentId} to user ${newReviewerId}`);
     onReassign(newReviewerId);
     setShowReassignModal(false);
-    toast({
-      title: 'Document Reassigned',
-      description: `"${documentTitle}" has been reassigned.`,
-      variant: 'default',
-    });
   };
 
   const handleApproveClick = () => {
     console.log(`[ReviewActions] Approving document ${documentId}`);
     onApprove();
-    toast({
-      title: 'Document Approved',
-      description: `"${documentTitle}" has been approved.`,
-    });
   };
 
   const handleRejectClick = () => {
@@ -123,11 +114,6 @@ export function ReviewActions({
     onReject(rejectionReason);
     setShowRejectModal(false);
     setRejectionReason('');
-    toast({
-      title: 'Document Rejected',
-      description: `"${documentTitle}" has been rejected.`,
-      variant: 'default',
-    });
   };
 
   return (

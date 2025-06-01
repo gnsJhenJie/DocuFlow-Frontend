@@ -211,7 +211,7 @@ export default function DocumentDetailPage() {
       setIsReviewing(false);
       setActiveTab('details');
       router.replace(buildUrl());
-      toast({ title: 'Approved', description: `"${approved.title}" approved.` });
+      toast({ title: 'Document Approved', description: `"${approved.title}" approved.` });
     } catch (err: any) {
       toast({ title: 'Approve Error', description: err.message, variant: 'destructive' });
     }
@@ -225,7 +225,7 @@ export default function DocumentDetailPage() {
       setIsReviewing(false);
       setActiveTab('details');
       router.replace(buildUrl());
-      toast({ title: 'Rejected', description: `"${rejected.title}" rejected.` });
+      toast({ title: 'Document Rejected', description: `"${rejected.title}" rejected.` });
     } catch (err: any) {
       toast({ title: 'Reject Error', description: err.message, variant: 'destructive' });
     }
