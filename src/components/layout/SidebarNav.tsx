@@ -67,7 +67,6 @@ const navItemsBase: NavItem[] = [
       { href: '/admin/users', label: 'User Management', icon: Users, roles: ['admin'] },
     ]
   },
-  { href: '/settings', label: 'Settings', icon: Settings, roles: ['viewer', 'editor', 'reviewer', 'admin'] },
 ];
 
 const cachedCounts: Record<string, DynamicCounts> = {};
