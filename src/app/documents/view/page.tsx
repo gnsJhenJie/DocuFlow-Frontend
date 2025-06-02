@@ -420,11 +420,18 @@ export default function DocumentDetailPage() {
               {(canReview || isReviewing) && (
                 <TabsContent value="reviewActions" className="p-2 md:p-6">
                   <h3 className="text-xl font-semibold mb-3.5">Review Actions</h3>
-                  {doc.status === 'approved' ? (
-                    /* If the document is already approved, display a message and no buttons */
-                    <p className="mb-4 text-muted-foreground">
-                      The document has been approved by {doc.reviewerName || 'Unknown Reviewer'}.
-                    </p>
+                  {(doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'draft') ? (
+                    doc.status === 'draft' ? (
+                      /* If the document is a draft, display a message and no buttons */
+                      <p className="mb-4 text-muted-foreground">
+                        The document is currently in draft status and has not been submitted for review.
+                      </p>
+                    ) : (
+                      /* If the document is already approved, rejected or draft, display a message and no buttons */
+                      <p className="mb-4 text-muted-foreground">
+                        The document has been {doc.status} by {doc.reviewerName || 'Unknown Reviewer'}.
+                      </p>
+                    )
 
                   ) : isAdmin ? (
                     /* Current user is an Admin */
