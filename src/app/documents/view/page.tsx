@@ -361,7 +361,7 @@ export default function DocumentDetailPage() {
                   <Alert variant="destructive" className="mb-6">
                     <MessageSquare className="h-4 w-4" />
                     <AlertTitle>
-                      Rejected on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP') : 'N/A'} by{' '}
+                      Rejected on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP p') : 'N/A'} by{' '}
                       {doc.reviewerName || 'Reviewer'}
                     </AlertTitle>
                     <AlertDescription>Reason: {doc.rejectionReason}</AlertDescription>
@@ -372,7 +372,7 @@ export default function DocumentDetailPage() {
                     <Clock className="h-4 w-4" />
                     <AlertTitle>Pending Review</AlertTitle>
                     <AlertDescription>
-                      Submitted on {doc.submittedAt ? format(new Date(doc.submittedAt), 'PPP') : 'N/A'}; awaiting{' '}
+                      Submitted on {doc.submittedAt ? format(new Date(doc.submittedAt), 'PPP p') : 'N/A'}; awaiting{' '}
                       {doc.reviewerName || 'reviewer'}.
                     </AlertDescription>
                   </Alert>
@@ -382,7 +382,7 @@ export default function DocumentDetailPage() {
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertTitle>Approved</AlertTitle>
                     <AlertDescription>
-                      Approved on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP') : 'N/A'} by{' '}
+                      Approved on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP p') : 'N/A'} by{' '}
                       {doc.reviewerName || 'Reviewer'}.
                     </AlertDescription>
                   </Alert>
@@ -420,11 +420,18 @@ export default function DocumentDetailPage() {
               {(canReview || isReviewing) && (
                 <TabsContent value="reviewActions" className="p-2 md:p-6">
                   <h3 className="text-xl font-semibold mb-3.5">Review Actions</h3>
-                  {doc.status === 'approved' ? (
-                    /* If the document is already approved, display a message and no buttons */
-                    <p className="mb-4 text-muted-foreground">
-                      The document has been approved by {doc.reviewerName || 'Unknown Reviewer'}.
-                    </p>
+                  {(doc.status === 'approved' || doc.status === 'rejected' || doc.status === 'draft') ? (
+                    doc.status === 'draft' ? (
+                      /* If the document is a draft, display a message and no buttons */
+                      <p className="mb-4 text-muted-foreground">
+                        The document is currently in draft status and has not been submitted for review.
+                      </p>
+                    ) : (
+                      /* If the document is already approved, rejected or draft, display a message and no buttons */
+                      <p className="mb-4 text-muted-foreground">
+                        The document has been {doc.status} by {doc.reviewerName || 'Unknown Reviewer'}.
+                      </p>
+                    )
 
                   ) : isAdmin ? (
                     /* Current user is an Admin */

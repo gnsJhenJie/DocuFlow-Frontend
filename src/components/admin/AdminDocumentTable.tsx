@@ -172,7 +172,7 @@ export function AdminDocumentTable({ documents, onReassignReviewer, onViewHistor
                   {isClient ? formatDistanceToNow(new Date(doc.updated_at), { addSuffix: true }) : <Skeleton className="h-4 w-24" />}
                 </TableCell>
                 <TableCell>
-                  {isClient ? (doc.submitted_at ? format(new Date(doc.submitted_at), 'PP') : 'N/A') : <Skeleton className="h-4 w-20" />}
+                  {isClient ? (doc.submitted_at ? format(new Date(doc.submitted_at), 'PPP p') : 'N/A') : <Skeleton className="h-4 w-20" />}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
