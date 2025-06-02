@@ -361,7 +361,7 @@ export default function DocumentDetailPage() {
                   <Alert variant="destructive" className="mb-6">
                     <MessageSquare className="h-4 w-4" />
                     <AlertTitle>
-                      Rejected on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP') : 'N/A'} by{' '}
+                      Rejected on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP p') : 'N/A'} by{' '}
                       {doc.reviewerName || 'Reviewer'}
                     </AlertTitle>
                     <AlertDescription>Reason: {doc.rejectionReason}</AlertDescription>
@@ -372,7 +372,7 @@ export default function DocumentDetailPage() {
                     <Clock className="h-4 w-4" />
                     <AlertTitle>Pending Review</AlertTitle>
                     <AlertDescription>
-                      Submitted on {doc.submittedAt ? format(new Date(doc.submittedAt), 'PPP') : 'N/A'}; awaiting{' '}
+                      Submitted on {doc.submittedAt ? format(new Date(doc.submittedAt), 'PPP p') : 'N/A'}; awaiting{' '}
                       {doc.reviewerName || 'reviewer'}.
                     </AlertDescription>
                   </Alert>
@@ -382,7 +382,7 @@ export default function DocumentDetailPage() {
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertTitle>Approved</AlertTitle>
                     <AlertDescription>
-                      Approved on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP') : 'N/A'} by{' '}
+                      Approved on {doc.reviewedAt ? format(new Date(doc.reviewedAt), 'PPP p') : 'N/A'} by{' '}
                       {doc.reviewerName || 'Reviewer'}.
                     </AlertDescription>
                   </Alert>
