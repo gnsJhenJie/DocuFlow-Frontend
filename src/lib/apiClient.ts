@@ -1,20 +1,24 @@
-
 // src/lib/apiClient.ts
-import type { AuthResponse, PaginatedDocumentsResponse, Document, User, DocumentHistoryEntry } from './types';
+import type {
+  AuthResponse,
+  PaginatedDocumentsResponse,
+  Document,
+  User,
+  DocumentHistoryEntry,
+} from "./types";
 
 let determinedApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-if (!determinedApiBaseUrl || determinedApiBaseUrl.trim() === '') {
+if (!determinedApiBaseUrl || determinedApiBaseUrl.trim() === "") {
   console.warn(
     '[ApiClient] NEXT_PUBLIC_API_BASE_URL is not set, empty, or whitespace. Falling back to "/api". ' +
-    'Ensure .env.local is in the project root, correctly configured (e.g., NEXT_PUBLIC_API_BASE_URL="http://localhost:8080/api"), ' +
-    'and that you have RESTARTED your Next.js development server after changes to .env.local.'
+      'Ensure .env.local is in the project root, correctly configured (e.g., NEXT_PUBLIC_API_BASE_URL="http://localhost:8080/api"), ' +
+      "and that you have RESTARTED your Next.js development server after changes to .env.local.",
   );
-  determinedApiBaseUrl = '/api';
+  determinedApiBaseUrl = "/api";
 }
 const API_BASE_URL = determinedApiBaseUrl;
-console.log('[ApiClient] Effective API_BASE_URL being used:', API_BASE_URL);
-
+console.log("[ApiClient] Effective API_BASE_URL being used:", API_BASE_URL);
 
 interface RequestOptions extends RequestInit {
   needsAuth?: boolean;
@@ -23,15 +27,20 @@ interface RequestOptions extends RequestInit {
 
 async function request<T>(
   endpoint: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<T> {
   const { needsAuth = true, isFormData = false, ...fetchOptions } = options;
-  const headers: HeadersInit = isFormData ? {} : { 'Content-Type': 'application/json' };
+  const headers: HeadersInit = isFormData
+    ? {}
+    : { "Content-Type": "application/json" };
 
   if (needsAuth) {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('docuflow_jwt_token') : null;
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("docuflow_jwt_token")
+        : null;
     if (token) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+      (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
     }
   }
 
@@ -41,7 +50,10 @@ async function request<T>(
   };
 
   const fullUrl = `${API_BASE_URL}${endpoint}`;
-  console.log(`[ApiClient] Attempting to fetch: ${fullUrl}`, options.method || 'GET'); // Log the full URL and method
+  console.log(
+    `[ApiClient] Attempting to fetch: ${fullUrl}`,
+    options.method || "GET",
+  ); // Log the full URL and method
 
   try {
     const response = await fetch(fullUrl, config);
@@ -53,15 +65,21 @@ async function request<T>(
       } catch (e) {
         // If response is not JSON (e.g., HTML error page from a misconfigured server or proxy)
         const textError = await response.text();
-        errorData = { detail: response.statusText || 'An unknown error occurred', responseBody: textError.substring(0, 500) };
+        errorData = {
+          detail: response.statusText || "An unknown error occurred",
+          responseBody: textError.substring(0, 500),
+        };
       }
-      console.error('API Error:', endpoint, response.status, errorData);
+      console.error("API Error:", endpoint, response.status, errorData);
       return errorData as T; // Return error data instead of throwing
       // throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
     }
 
-    if (response.status === 204 || response.headers.get('content-length') === '0') {
-        return undefined as T;
+    if (
+      response.status === 204 ||
+      response.headers.get("content-length") === "0"
+    ) {
+      return undefined as T;
     }
     return await response.json();
   } catch (error) {
@@ -73,48 +91,93 @@ async function request<T>(
 
 export const apiClient = {
   // Auth
-  register: (data: any) => request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(data), needsAuth: false }),
-  login: (data: any) => request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(data), needsAuth: false }),
-  logout: () => request<void>('/auth/logout', { method: 'POST' }),
-  getCurrentUser: () => request<User>('/auth/me'),
-  getGoogleAuthUrl: () => request<{ url: string }>('/auth/google/url', { needsAuth: false }),
-  exchangeGoogleCode: (code: string) => request<AuthResponse>('/auth/google/callback', { method: 'POST', body: JSON.stringify({ code }), needsAuth: false }),
-
+  register: (data: any) =>
+    request<AuthResponse>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+      needsAuth: false,
+    }),
+  login: (data: any) =>
+    request<AuthResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+      needsAuth: false,
+    }),
+  logout: () => request<void>("/auth/logout", { method: "POST" }),
+  getCurrentUser: () => request<User>("/auth/me"),
+  getGoogleAuthUrl: () =>
+    request<{ url: string }>("/auth/google/url", { needsAuth: false }),
+  exchangeGoogleCode: (code: string) =>
+    request<AuthResponse>("/auth/google/callback", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+      needsAuth: false,
+    }),
 
   // Users
-  getUsers: (params?: URLSearchParams) => request<User[]>(`/users${params ? `?${params.toString()}`: ''}`),
+  getUsers: (params?: URLSearchParams) =>
+    request<User[]>(`/users${params ? `?${params.toString()}` : ""}`),
   getReviewers: () => request<User[]>(`/users/reviewers`),
-  updateUserRole: (userId: string, role: string) => request<User>(`/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+  updateUserRole: (userId: string, role: string) =>
+    request<User>(`/users/${userId}/role`, {
+      method: "PUT",
+      body: JSON.stringify({ role }),
+    }),
 
   // Documents
   createDocument: (data: any) => {
     // Ensure reviewerId is number if present
     const payload = { ...data };
-    if (payload.reviewerId && typeof payload.reviewerId === 'string') {
+    if (payload.reviewerId && typeof payload.reviewerId === "string") {
       payload.reviewerId = parseInt(payload.reviewerId, 10);
     }
-    return request<Document>('/documents', { method: 'POST', body: JSON.stringify(payload) });
+    return request<Document>("/documents", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
-  getDocuments: (params: URLSearchParams) => request<PaginatedDocumentsResponse>(`/documents?${params.toString()}`),
+  getDocuments: (params: URLSearchParams) =>
+    request<PaginatedDocumentsResponse>(`/documents?${params.toString()}`),
   getDocumentById: (id: string) => request<Document>(`/documents/${id}`),
   updateDocument: (id: string, data: any) => {
-     // Ensure reviewerId is number if present
+    // Ensure reviewerId is number if present
     const payload = { ...data };
-    if (payload.reviewerId && typeof payload.reviewerId === 'string') {
+    if (payload.reviewerId && typeof payload.reviewerId === "string") {
       payload.reviewerId = parseInt(payload.reviewerId, 10);
     }
-    if (payload.authorId && typeof payload.authorId === 'string') {
+    if (payload.authorId && typeof payload.authorId === "string") {
       payload.authorId = parseInt(payload.authorId, 10);
     }
-    return request<Document>(`/documents/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+    return request<Document>(`/documents/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
-  deleteDocument: (id: string) => request<{ message: string }>(`/documents/${id}`, { method: 'DELETE' }),
-  approveDocument: (id: string) => request<Document>(`/documents/${id}/approve`, { method: 'POST' }),
-  rejectDocument: (id: string, reason: string) => request<Document>(`/documents/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
-  reassignReviewer: (documentId: string, newReviewerId: number) => // API spec says number
-    request<Document>(`/documents/${documentId}/reassign`, { method: 'POST', body: JSON.stringify({ newReviewerId }) }),
-  getDocumentHistory: (id: string) => request<DocumentHistoryEntry[]>(`/documents/${id}/history`),
+  deleteDocument: (id: string) =>
+    request<{ message: string }>(`/documents/${id}`, { method: "DELETE" }),
+  approveDocument: (id: string) =>
+    request<Document>(`/documents/${id}/approve`, { method: "POST" }),
+  rejectDocument: (id: string, reason: string) =>
+    request<Document>(`/documents/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+  reassignReviewer: (
+    documentId: string,
+    newReviewerId: number, // API spec says number
+  ) =>
+    request<Document>(`/documents/${documentId}/reassign`, {
+      method: "POST",
+      body: JSON.stringify({ newReviewerId }),
+    }),
+  getDocumentHistory: (id: string) =>
+    request<DocumentHistoryEntry[]>(`/documents/${id}/history`),
 
   // Upload
-  uploadImage: (formData: FormData) => request<{ imageUrl: string }>('/upload', { method: 'POST', body: formData, isFormData: true }),
+  uploadImage: (formData: FormData) =>
+    request<{ imageUrl: string }>("/upload", {
+      method: "POST",
+      body: formData,
+      isFormData: true,
+    }),
 };

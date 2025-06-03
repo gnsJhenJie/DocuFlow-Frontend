@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,12 +10,12 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { AppLogo } from '@/components/AppLogo';
-import { Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/apiClient';
-import { useAuth } from '@/contexts/AuthContext';
+} from "@/components/ui/card";
+import { AppLogo } from "@/components/AppLogo";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/apiClient";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
@@ -26,7 +26,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (loading) return;
     if (user) {
-      router.replace('/'); 
+      router.replace("/");
     }
   }, [user, loading, router]);
 
@@ -42,17 +42,17 @@ export default function LoginPage() {
         window.location.href = response.url;
       } else {
         toast({
-          title: 'Google Login Error',
-          description: 'Could not retrieve Google login URL.',
-          variant: 'destructive',
+          title: "Google Login Error",
+          description: "Could not retrieve Google login URL.",
+          variant: "destructive",
         });
         setIsGoogleLoading(false);
       }
     } catch (error: any) {
       toast({
-        title: 'Google Login Failed',
-        description: error.message || 'Could not initiate Google login.',
-        variant: 'destructive',
+        title: "Google Login Failed",
+        description: error.message || "Could not initiate Google login.",
+        variant: "destructive",
       });
       setIsGoogleLoading(false);
     }
@@ -65,7 +65,9 @@ export default function LoginPage() {
           <div className="flex justify-center">
             <AppLogo />
           </div>
-          <CardTitle className="text-2xl font-semibold">Welcome to DocuFlow</CardTitle>
+          <CardTitle className="text-2xl font-semibold">
+            Welcome to DocuFlow
+          </CardTitle>
           <CardDescription className="text-sm text-muted-foreground">
             Sign in to manage your documents
           </CardDescription>

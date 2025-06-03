@@ -1,4 +1,3 @@
-
 export interface User {
   id: string; // Assuming backend provides string IDs for users consistent with this
   email: string;
@@ -7,9 +6,9 @@ export interface User {
   role: Role;
 }
 
-export type Role = 'viewer' | 'editor' | 'reviewer' | 'admin';
+export type Role = "viewer" | "editor" | "reviewer" | "admin";
 
-export type ReviewStatus = 'draft' | 'pending_review' | 'approved' | 'rejected';
+export type ReviewStatus = "draft" | "pending_review" | "approved" | "rejected";
 
 export interface Document {
   id: string; // Assuming backend provides string IDs for documents
@@ -27,7 +26,6 @@ export interface Document {
   updated_at: string;
   submitted_at?: string;
   reviewed_at?: string;
-  
 }
 
 export interface DocumentHistoryEntry {

@@ -1,21 +1,20 @@
-
-import type { Metadata } from 'next';
-import { Inter as FontSans } from 'next/font/google'; // Using Inter as a more common professional font
-import './globals.css';
-import { cn } from '@/lib/utils';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { Suspense } from 'react';
-import { Loader2 } from 'lucide-react';
-import { ThemeProvider } from '@/contexts/ThemeContext'; // Import ThemeProvider
+import type { Metadata } from "next";
+import { Inter as FontSans } from "next/font/google"; // Using Inter as a more common professional font
+import "./globals.css";
+import { cn } from "@/lib/utils";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Suspense } from "react";
+import { Loader2 } from "lucide-react";
+import { ThemeProvider } from "@/contexts/ThemeContext"; // Import ThemeProvider
 
 const fontSans = FontSans({
-  subsets: ['latin'],
-  variable: '--font-geist-sans', // Keep variable name for compatibility if Geist was intended
+  subsets: ["latin"],
+  variable: "--font-geist-sans", // Keep variable name for compatibility if Geist was intended
 });
 
 export const metadata: Metadata = {
-  title: 'DocuFlow - Document Management',
-  description: 'Efficiently manage your enterprise documents with DocuFlow.',
+  title: "DocuFlow - Document Management",
+  description: "Efficiently manage your enterprise documents with DocuFlow.",
 };
 
 export default function RootLayout({
@@ -28,17 +27,23 @@ export default function RootLayout({
       <body
         suppressHydrationWarning={true}
         className={cn(
-          'min-h-screen bg-background font-sans antialiased',
-          fontSans.variable
+          "min-h-screen bg-background font-sans antialiased",
+          fontSans.variable,
         )}
       >
-        <ThemeProvider> {/* Wrap with ThemeProvider */}
-          <Suspense fallback={
-            <div className="flex h-screen items-center justify-center bg-background">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="ml-3 text-lg text-muted-foreground">Loading Application...</p>
-            </div>
-          }>
+        <ThemeProvider>
+          {" "}
+          {/* Wrap with ThemeProvider */}
+          <Suspense
+            fallback={
+              <div className="flex h-screen items-center justify-center bg-background">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="ml-3 text-lg text-muted-foreground">
+                  Loading Application...
+                </p>
+              </div>
+            }
+          >
             <AppLayout>{children}</AppLayout>
           </Suspense>
         </ThemeProvider>
