@@ -1,37 +1,59 @@
-name: DocuFlow CI
+name: Auto-format Frontend on PR
 
 on:
   push:
-    branches: "*"
-  pull_request:
-    branches: "*"
+    paths:
+      - '**/*.{js,ts,jsx,tsx,html,css,json}'
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  build:
+  format:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x] # Consistent with README and devcontainer
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+          fetch-depth: 0
+          persist-credentials: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: "npm"
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'  # 根據你的 Node.js 版本選擇合適的版本
 
-      - name: Install dependencies
-        run: npm ci
+    - name: Install Prettier
+      run: npm install -g prettier
 
-      - name: Build project
-        run: npm run build
-        env:
-          # If your build requires environment variables (e.g., for Genkit initialization during build),
-          # you would configure them here, likely using GitHub secrets.
-          # Example: GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          NEXT_PUBLIC_API_BASE_URL: "http://localhost:3000/api" # Adjust as needed for local testing
-          CI: true # Common flag for CI environments
+    - name: Run Prettier to format code
+      run: prettier --write .  # 執行 Prettier 格式化
+
+    - name: Commit and push formatted code
+      run: |
+        if ! git diff --quiet; then
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: apply Prettier formatting"
+          git push origin HEAD:${{ github.head_ref }}
+        else
+          echo "No formatting changes detected."
+        fi
+    - name: Create a new PR with formatted changes
+      if: ${{ steps.prettier_format.outcome == 'failure' }}
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        # Use the original PR's source branch as the target base, or adjust with base.ref if needed
+        base: ${{ github.event.pull_request.base.ref }}
+        branch: prettier-formatting/${{ github.event.pull_request.head.ref }}
+        title: "[Auto] Apply Prettier formatting to ${{ github.event.pull_request.head.ref }}"
+        body: |
+          This PR will apply Prettier formatting to the `.js`, `.ts`, `.jsx`, `.tsx`, `.html`, `.css`, and `.json` files in branch `${{ github.event.pull_request.head.ref }}`.
+          The target base branch is `${{ github.event.pull_request.base.ref }}`.
+        commit-message: "chore: apply Prettier formatting"
+        create-draft: false
