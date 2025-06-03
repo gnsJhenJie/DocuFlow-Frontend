@@ -30,7 +30,7 @@ describe('DocumentStatusBadge Component', () => {
   ];
 
   testCases.forEach(({ status, expectedText, expectedClassSubstrings }) => {
-    it(\`renders correctly for status: \${status}\`, () => {
+    it(`renders correctly for status: ${status}`, () => {
       render(<DocumentStatusBadge status={status} />);
       
       const badgeElement = screen.getByText(expectedText);
