@@ -1,7 +1,7 @@
 name: Auto-format Frontend on PR
 
 on:
-  push:
+  pull_request:
     paths:
       - '**/*.{js,ts,jsx,tsx,html,css,json}'
 
