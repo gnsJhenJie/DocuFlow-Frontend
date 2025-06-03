@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState, useRef } from 'react';
-import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import React, { useEffect, useState, useRef } from "react";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Home,
   FileText,
@@ -15,23 +15,23 @@ import {
   XCircle,
   Clock,
   Loader2,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuSub,
-} from '@/components/ui/sidebar';
-import type { User } from '@/lib/types';
-import { useAuth } from '@/contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
-import { apiClient } from '@/lib/apiClient';
+} from "@/components/ui/sidebar";
+import type { User } from "@/lib/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { Badge } from "@/components/ui/badge";
+import { apiClient } from "@/lib/apiClient";
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  roles?: User['role'][];
+  roles?: User["role"][];
   badgeCountKey?: keyof DynamicCounts;
   subItems?: NavItem[];
 }
@@ -48,40 +48,45 @@ interface DynamicCounts {
 
 const navItemsBase: NavItem[] = [
   {
-    href: '/',
-    label: 'Dashboard',
+    href: "/",
+    label: "Dashboard",
     icon: Home,
-    roles: ['viewer', 'editor', 'reviewer', 'admin'],
+    roles: ["viewer", "editor", "reviewer", "admin"],
   },
   {
-    href: '/documents',
-    label: 'Documents',
+    href: "/documents",
+    label: "Documents",
     icon: Files,
-    roles: ['viewer', 'editor', 'reviewer', 'admin'],
-    badgeCountKey: 'allDocumentsCount',
+    roles: ["viewer", "editor", "reviewer", "admin"],
+    badgeCountKey: "allDocumentsCount",
   },
   {
-    href: '/documents?view=my_documents',
-    label: 'My Documents',
+    href: "/documents?view=my_documents",
+    label: "My Documents",
     icon: FileText,
-    roles: ['editor', 'reviewer', 'admin'],
-    badgeCountKey: 'myDocumentsCount',
+    roles: ["editor", "reviewer", "admin"],
+    badgeCountKey: "myDocumentsCount",
   },
   {
-    href: '/documents?view=pending_my_review',
-    label: 'Pending My Review',
+    href: "/documents?view=pending_my_review",
+    label: "Pending My Review",
     icon: MailCheck,
-    roles: ['reviewer', 'admin'],
-    badgeCountKey: 'pendingMyReviewCount',
+    roles: ["reviewer", "admin"],
+    badgeCountKey: "pendingMyReviewCount",
   },
   {
-    href: '/admin',
-    label: 'Admin Panel',
+    href: "/admin",
+    label: "Admin Panel",
     icon: ShieldAlert,
-    roles: ['admin'],
+    roles: ["admin"],
     subItems: [
-      { href: '/admin', label: 'All Documents', icon: Files, roles: ['admin'] },
-      { href: '/admin/users', label: 'User Management', icon: Users, roles: ['admin'] },
+      { href: "/admin", label: "All Documents", icon: Files, roles: ["admin"] },
+      {
+        href: "/admin/users",
+        label: "User Management",
+        icon: Users,
+        roles: ["admin"],
+      },
     ],
   },
 ];
@@ -109,7 +114,7 @@ export function SidebarNav() {
       setLoadingCounts(true);
 
       try {
-        const params = new URLSearchParams({ limit: '999' });
+        const params = new URLSearchParams({ limit: "999" });
         const { documents: allDocs } = await apiClient.getDocuments(params);
 
         const counts: DynamicCounts = {
@@ -123,13 +128,13 @@ export function SidebarNav() {
         };
 
         for (const doc of allDocs) {
-          if (doc.status === 'draft') counts.draftCount++;
-          if (doc.status === 'pending_review') counts.pendingReviewCount++;
-          if (doc.status === 'approved') counts.approvedCount++;
-          if (doc.status === 'rejected') counts.rejectedCount++;
+          if (doc.status === "draft") counts.draftCount++;
+          if (doc.status === "pending_review") counts.pendingReviewCount++;
+          if (doc.status === "approved") counts.approvedCount++;
+          if (doc.status === "rejected") counts.rejectedCount++;
           if (
             doc.reviewer_id === Number(user.id) &&
-            doc.status === 'pending_review'
+            doc.status === "pending_review"
           ) {
             counts.pendingMyReviewCount++;
           }
@@ -138,7 +143,7 @@ export function SidebarNav() {
 
         setDynamicCounts(counts);
       } catch (err) {
-        console.error('Sidebar counts fetch error:', err);
+        console.error("Sidebar counts fetch error:", err);
       } finally {
         setLoadingCounts(false);
       }
@@ -150,12 +155,12 @@ export function SidebarNav() {
   }, [user, authLoading, pathname, searchParamsString]);
 
   const getIsActive = (item: NavItem): boolean => {
-    const [baseItemPath, itemQueryString] = item.href.split('?');
-    const currentBasePath = pathname.split('?')[0];
+    const [baseItemPath, itemQueryString] = item.href.split("?");
+    const currentBasePath = pathname.split("?")[0];
     const currentQueryString = currentSearchParams.toString();
 
-    if (baseItemPath === '/') {
-      if (currentBasePath === '/' && currentQueryString === '') {
+    if (baseItemPath === "/") {
+      if (currentBasePath === "/" && currentQueryString === "") {
         return true;
       }
     } else {
@@ -172,8 +177,8 @@ export function SidebarNav() {
             return true;
           }
         } else {
-          if (baseItemPath === '/documents') {
-            if (currentQueryString === '') {
+          if (baseItemPath === "/documents") {
+            if (currentQueryString === "") {
               return true;
             }
           } else {
@@ -184,7 +189,7 @@ export function SidebarNav() {
     }
 
     if (item.subItems) {
-      return item.subItems.some(sub => getIsActive(sub));
+      return item.subItems.some((sub) => getIsActive(sub));
     }
 
     return false;
@@ -196,11 +201,13 @@ export function SidebarNav() {
     }
 
     const isActive = getIsActive(item);
-    const badge = item.badgeCountKey ? dynamicCounts[item.badgeCountKey] : undefined;
+    const badge = item.badgeCountKey
+      ? dynamicCounts[item.badgeCountKey]
+      : undefined;
 
     const renderSubItems = item.subItems?.length ? (
       <SidebarMenuSub>
-        {item.subItems.map(sub => renderNavItem(sub))}
+        {item.subItems.map((sub) => renderNavItem(sub))}
       </SidebarMenuSub>
     ) : null;
 
@@ -208,7 +215,7 @@ export function SidebarNav() {
       <SidebarMenuItem key={item.href}>
         <Link href={item.href} passHref legacyBehavior>
           <SidebarMenuButton isActive={isActive} tooltip={item.label}>
-            {React.createElement(item.icon, { className: 'h-5 w-5' })}
+            {React.createElement(item.icon, { className: "h-5 w-5" })}
             <span className="truncate">{item.label}</span>
             {loadingCounts && item.badgeCountKey ? (
               <Loader2 className="ml-auto h-4 w-4 animate-spin" />
@@ -228,7 +235,7 @@ export function SidebarNav() {
     label: string,
     icon: React.ElementType,
     status: keyof DynamicCounts,
-    href: string
+    href: string,
   ) => {
     const fakeNavItem: NavItem = { href, label, icon };
     const isActive = getIsActive(fakeNavItem);
@@ -238,7 +245,7 @@ export function SidebarNav() {
       <SidebarMenuItem key={href}>
         <Link href={href} passHref legacyBehavior>
           <SidebarMenuButton isActive={isActive} tooltip={label}>
-            {React.createElement(icon, { className: 'h-5 w-5' })}
+            {React.createElement(icon, { className: "h-5 w-5" })}
             <span className="truncate">{label}</span>
             {loadingCounts ? (
               <Loader2 className="ml-auto h-4 w-4 animate-spin" />
@@ -254,26 +261,33 @@ export function SidebarNav() {
   };
 
   const statusItems = [
-    ['Drafts', Edit3, 'draftCount', '/documents?status=draft'],
-    ['Pending Review', Clock, 'pendingReviewCount', '/documents?status=pending_review'],
-    ['Approved', CheckCircle2, 'approvedCount', '/documents?status=approved'],
-    ['Rejected', XCircle, 'rejectedCount', '/documents?status=rejected'],
+    ["Drafts", Edit3, "draftCount", "/documents?status=draft"],
+    [
+      "Pending Review",
+      Clock,
+      "pendingReviewCount",
+      "/documents?status=pending_review",
+    ],
+    ["Approved", CheckCircle2, "approvedCount", "/documents?status=approved"],
+    ["Rejected", XCircle, "rejectedCount", "/documents?status=rejected"],
   ] as const;
 
   return (
     <div className="flex flex-col h-full">
       <SidebarMenu className="flex-1">
-        {navItemsBase.map(item => renderNavItem(item))}
+        {navItemsBase.map((item) => renderNavItem(item))}
       </SidebarMenu>
 
-      {(user.role === 'editor' || user.role === 'reviewer' || user.role === 'admin') && (
+      {(user.role === "editor" ||
+        user.role === "reviewer" ||
+        user.role === "admin") && (
         <div className="mt-auto">
           <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
             Document Statuses
           </div>
           <SidebarMenu>
             {statusItems.map(([label, icon, key, href]) =>
-              renderStatusItem(label, icon, key, href)
+              renderStatusItem(label, icon, key, href),
             )}
           </SidebarMenu>
         </div>

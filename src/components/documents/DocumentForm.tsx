@@ -1,34 +1,60 @@
-import React, { useState, useEffect, useRef } from 'react';
-import type { Document, User } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import React, { useState, useEffect, useRef } from "react";
+import type { Document, User } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
-  Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription,
-} from '@/components/ui/card';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import Image from 'next/image';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import Image from "next/image";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
-  UploadCloud, Save, Send, XCircle, Info, ImagePlus, Loader2,
-} from 'lucide-react';
+  UploadCloud,
+  Save,
+  Send,
+  XCircle,
+  Info,
+  ImagePlus,
+  Loader2,
+} from "lucide-react";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/apiClient';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/apiClient";
 
 // -----------------------------
 // Validation Schema
 // -----------------------------
 const documentSchema = z.object({
-  title: z.string().min(3, { message: 'Title must be at least 3 characters.' }).max(100),
-  content: z.string().min(10, { message: 'Content must be at least 10 characters.' }).optional().default(''),
-  imageUrl: z.string().url({ message: 'Please enter a valid URL.' }).optional().or(z.literal('')),
+  title: z
+    .string()
+    .min(3, { message: "Title must be at least 3 characters." })
+    .max(100),
+  content: z
+    .string()
+    .min(10, { message: "Content must be at least 10 characters." })
+    .optional()
+    .default(""),
+  imageUrl: z
+    .string()
+    .url({ message: "Please enter a valid URL." })
+    .optional()
+    .or(z.literal("")),
   reviewerId: z.string().optional(),
 });
 
@@ -39,10 +65,10 @@ interface DocumentFormProps {
   currentUser: User;
   onSubmit: (
     data: DocumentFormData,
-    action: 'save_draft' | 'submit_for_review' | 'resubmit_for_review',
+    action: "save_draft" | "submit_for_review" | "resubmit_for_review",
   ) => void;
   onCancel?: () => void;
-  formMode: 'create' | 'edit';
+  formMode: "create" | "edit";
 }
 
 export function DocumentForm({
@@ -55,7 +81,9 @@ export function DocumentForm({
   // ---------------------------------------------------------------------
   // State & Refs
   // ---------------------------------------------------------------------
-  const [imagePreview, setImagePreview] = useState<string | null>(document?.image_url || null);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    document?.image_url || null,
+  );
   const [reviewers, setReviewers] = useState<User[]>([]);
   const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
@@ -84,14 +112,15 @@ export function DocumentForm({
   } = useForm<DocumentFormData>({
     resolver: zodResolver(documentSchema),
     defaultValues: {
-      title: document?.title || '',
-      content: document?.content || '',
-      imageUrl: document?.image_url || '',
-      reviewerId: document?.reviewerId != null ? String(document.reviewerId) : '',
+      title: document?.title || "",
+      content: document?.content || "",
+      imageUrl: document?.image_url || "",
+      reviewerId:
+        document?.reviewerId != null ? String(document.reviewerId) : "",
     },
   });
 
-  const watchContent = watch('content');
+  const watchContent = watch("content");
 
   // ---------------------------------------------------------------------
   // Effects
@@ -101,8 +130,9 @@ export function DocumentForm({
       reset({
         title: document.title,
         content: document.content,
-        imageUrl: document.image_url || '',
-        reviewerId: document.reviewerId != null ? String(document.reviewerId) : '',
+        imageUrl: document.image_url || "",
+        reviewerId:
+          document.reviewerId != null ? String(document.reviewerId) : "",
       });
       setImagePreview(document.image_url || null);
       setCoverTouched(false);
@@ -114,12 +144,14 @@ export function DocumentForm({
       setIsLoadingReviewers(true);
       try {
         const data = await apiClient.getReviewers();
-        setReviewers(data.filter((r) => Number(r.id) !== Number(currentUser.id)));
+        setReviewers(
+          data.filter((r) => Number(r.id) !== Number(currentUser.id)),
+        );
       } catch (err: any) {
         toast({
-          title: 'Error fetching reviewers',
+          title: "Error fetching reviewers",
           description: err.message,
-          variant: 'destructive',
+          variant: "destructive",
         });
       } finally {
         setIsLoadingReviewers(false);
@@ -137,25 +169,25 @@ export function DocumentForm({
     if (!editor || !preview) return;
 
     let isSyncing = false;
-    const sync = (source: 'editor' | 'preview') => {
+    const sync = (source: "editor" | "preview") => {
       if (isSyncing) return;
       isSyncing = true;
-      const from = source === 'editor' ? editor : preview;
-      const to = source === 'editor' ? preview : editor;
+      const from = source === "editor" ? editor : preview;
+      const to = source === "editor" ? preview : editor;
       const ratio = from.scrollTop / (from.scrollHeight - from.clientHeight);
       to.scrollTop = ratio * (to.scrollHeight - to.clientHeight);
       isSyncing = false;
     };
 
-    const onEditorScroll = () => sync('editor');
-    const onPreviewScroll = () => sync('preview');
+    const onEditorScroll = () => sync("editor");
+    const onPreviewScroll = () => sync("preview");
 
-    editor.addEventListener('scroll', onEditorScroll);
-    preview.addEventListener('scroll', onPreviewScroll);
+    editor.addEventListener("scroll", onEditorScroll);
+    preview.addEventListener("scroll", onPreviewScroll);
 
     return () => {
-      editor.removeEventListener('scroll', onEditorScroll);
-      preview.removeEventListener('scroll', onPreviewScroll);
+      editor.removeEventListener("scroll", onEditorScroll);
+      preview.removeEventListener("scroll", onPreviewScroll);
     };
   }, []);
 
@@ -168,19 +200,19 @@ export function DocumentForm({
   ): Promise<string | null> => {
     setLoading(true);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
     try {
       const res = await apiClient.uploadImage(formData);
       toast({
-        title: 'Image Uploaded',
+        title: "Image Uploaded",
         description: `${file.name} uploaded successfully.`,
       });
       return res.imageUrl;
     } catch (err: any) {
       toast({
-        title: 'Image Upload Failed',
+        title: "Image Upload Failed",
         description: err.message,
-        variant: 'destructive',
+        variant: "destructive",
       });
       return null;
     } finally {
@@ -188,30 +220,32 @@ export function DocumentForm({
     }
   };
 
-  const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     setCoverTouched(true);
     const file = e.target.files?.[0];
     if (!file) return;
     const url = await handleFileUpload(file, setIsUploadingCover);
     if (url) {
       setImagePreview(url);
-      setValue('imageUrl', url, { shouldValidate: true });
+      setValue("imageUrl", url, { shouldValidate: true });
     }
-    e.target.value = '';
+    e.target.value = "";
   };
 
   const insertImageMarkdown = (url: string, alt: string) => {
     const textarea = contentTextAreaRef.current;
     if (!textarea) return;
 
-    const markdown = `![${alt || 'image'}](${url})\n`;
+    const markdown = `![${alt || "image"}](${url})\n`;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const content = getValues('content') || '';
+    const content = getValues("content") || "";
     setValue(
-      'content',
+      "content",
       content.slice(0, start) + markdown + content.slice(end),
-      { shouldValidate: true , shouldDirty: true },
+      { shouldValidate: true, shouldDirty: true },
     );
 
     requestAnimationFrame(() => {
@@ -219,15 +253,15 @@ export function DocumentForm({
       const pos = start + markdown.length;
       textarea.setSelectionRange(pos, pos);
     });
-    toast({ title: 'Image Inserted', description: alt });
+    toast({ title: "Image Inserted", description: alt });
   };
 
   const processContentImage = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith("image/")) {
       toast({
-        title: 'Invalid File',
-        description: 'Please select an image file.',
-        variant: 'destructive',
+        title: "Invalid File",
+        description: "Please select an image file.",
+        variant: "destructive",
       });
       return;
     }
@@ -235,10 +269,12 @@ export function DocumentForm({
     if (url) insertImageMarkdown(url, file.name);
   };
 
-  const handleContentImageSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleContentImageSelected = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (file) processContentImage(file);
-    e.target.value = '';
+    e.target.value = "";
   };
 
   const handleDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
@@ -254,18 +290,22 @@ export function DocumentForm({
   // ---------------------------------------------------------------------
   const onFormSubmit = (
     data: DocumentFormData,
-    action: 'save_draft' | 'submit_for_review' | 'resubmit_for_review',
+    action: "save_draft" | "submit_for_review" | "resubmit_for_review",
   ) => {
-    if (action !== 'save_draft' && !data.reviewerId) {
+    if (action !== "save_draft" && !data.reviewerId) {
       toast({
-        title: 'Reviewer Required',
-        description: 'Please select a reviewer.',
-        variant: 'destructive',
+        title: "Reviewer Required",
+        description: "Please select a reviewer.",
+        variant: "destructive",
       });
       return;
     }
     onSubmit(
-      { ...data, content: data.content || '', imageUrl: data.imageUrl || undefined },
+      {
+        ...data,
+        content: data.content || "",
+        imageUrl: data.imageUrl || undefined,
+      },
       action,
     );
   };
@@ -283,16 +323,16 @@ export function DocumentForm({
 
   // Save Draft: 当状态为 draft/approved/rejected 且没有更改（包括 reviewerId）时锁定
   const saveDisabled =
-    (status === 'draft' || status === 'approved' || status === 'rejected') &&
+    (status === "draft" || status === "approved" || status === "rejected") &&
     !changedSpecific;
 
   // Submit/Resubmit: 当状态为 approved/rejected 且没有更改时锁定
-  const isLockedStatus = status === 'approved' || status === 'rejected';
+  const isLockedStatus = status === "approved" || status === "rejected";
   const submitDisabled = isLockedStatus && !changedSpecific;
 
-  const saveAction: 'save_draft' = 'save_draft';
-  const submitAction: 'submit_for_review' | 'resubmit_for_review' =
-    formMode === 'create' ? 'submit_for_review' : 'resubmit_for_review';
+  const saveAction: "save_draft" = "save_draft";
+  const submitAction: "submit_for_review" | "resubmit_for_review" =
+    formMode === "create" ? "submit_for_review" : "resubmit_for_review";
 
   // ---------------------------------------------------------------------
   // JSX
@@ -301,12 +341,12 @@ export function DocumentForm({
     <Card className="mx-auto w-full max-w-7xl shadow-lg">
       <CardHeader>
         <CardTitle>
-          {formMode === 'edit' ? 'Edit Document' : 'Create New Document'}
+          {formMode === "edit" ? "Edit Document" : "Create New Document"}
         </CardTitle>
         <CardDescription>
-          {formMode === 'edit'
-            ? 'Update your document details.'
-            : 'Fill in the details to create a new document.'}
+          {formMode === "edit"
+            ? "Update your document details."
+            : "Fill in the details to create a new document."}
         </CardDescription>
       </CardHeader>
 
@@ -318,7 +358,11 @@ export function DocumentForm({
           {/* Title */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="title">Title</Label>
-            <Input id="title" placeholder="Enter document title" {...register('title')} />
+            <Input
+              id="title"
+              placeholder="Enter document title"
+              {...register("title")}
+            />
             {errors.title && (
               <p className="text-sm text-destructive">{errors.title.message}</p>
             )}
@@ -331,7 +375,9 @@ export function DocumentForm({
               {/* Markdown Editor */}
               <div className="flex flex-col h-[60vh] min-h-[500px]">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-muted-foreground">Markdown</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Markdown
+                  </span>
                   <Button
                     type="button"
                     variant="outline"
@@ -362,7 +408,9 @@ export function DocumentForm({
                   )}
                 />
                 {errors.content && (
-                  <p className="text-sm text-destructive mt-1">{errors.content.message}</p>
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.content.message}
+                  </p>
                 )}
                 <input
                   ref={contentImageUploadRef}
@@ -372,19 +420,25 @@ export function DocumentForm({
                   onChange={handleContentImageSelected}
                 />
                 <p className="mt-1 text-xs text-muted-foreground flex items-center">
-                  <Info className="mr-1 h-3 w-3" /> Drag & drop images or use the button above.
+                  <Info className="mr-1 h-3 w-3" /> Drag & drop images or use
+                  the button above.
                 </p>
               </div>
 
               {/* Live Preview */}
               <div className="flex flex-col h-[60vh] min-h-[500px]">
-                <span className="text-sm font-medium text-muted-foreground mb-2">Preview</span>
+                <span className="text-sm font-medium text-muted-foreground mb-2">
+                  Preview
+                </span>
                 <div
                   ref={previewContainerRef}
                   className="flex-1 overflow-y-auto rounded border bg-background p-6"
                 >
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose dark:prose-invert max-w-none">
-                    {watchContent || ''}
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    className="prose dark:prose-invert max-w-none"
+                  >
+                    {watchContent || ""}
                   </ReactMarkdown>
                 </div>
               </div>
@@ -424,7 +478,7 @@ export function DocumentForm({
                     alt="Cover preview"
                     fill
                     sizes="160px"
-                    style={{ objectFit: 'cover' }}
+                    style={{ objectFit: "cover" }}
                   />
                   <Button
                     type="button"
@@ -433,7 +487,7 @@ export function DocumentForm({
                     className="absolute top-1 right-1 opacity-75 hover:opacity-100"
                     onClick={() => {
                       setImagePreview(null);
-                      setValue('imageUrl', '');
+                      setValue("imageUrl", "");
                       setCoverTouched(true);
                     }}
                   >
@@ -443,13 +497,16 @@ export function DocumentForm({
               )}
             </div>
             {errors.imageUrl && (
-              <p className="text-sm text-destructive">{errors.imageUrl.message}</p>
+              <p className="text-sm text-destructive">
+                {errors.imageUrl.message}
+              </p>
             )}
           </div>
 
           {/* Reviewer Selection */}
-          {(formMode === 'create' ||
-            (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
+          {(formMode === "create" ||
+            (document &&
+              ["draft", "rejected", "approved"].includes(document.status))) && (
             <div className="flex flex-col gap-2">
               <Label htmlFor="reviewerId">Select Reviewer</Label>
               <Controller
@@ -458,12 +515,16 @@ export function DocumentForm({
                 render={({ field }) => (
                   <Select
                     onValueChange={field.onChange}
-                    value={field.value || ''}
-                    disabled={isLoadingReviewers || (status !== 'draft' && saveDisabled)}
+                    value={field.value || ""}
+                    disabled={
+                      isLoadingReviewers || (status !== "draft" && saveDisabled)
+                    }
                   >
                     <SelectTrigger id="reviewerId">
                       <SelectValue
-                        placeholder={isLoadingReviewers ? 'Loading…' : 'Choose a reviewer'}
+                        placeholder={
+                          isLoadingReviewers ? "Loading…" : "Choose a reviewer"
+                        }
                       />
                     </SelectTrigger>
                     <SelectContent>
@@ -487,7 +548,9 @@ export function DocumentForm({
                 )}
               />
               {errors.reviewerId && (
-                <p className="text-sm text-destructive">{errors.reviewerId.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.reviewerId.message}
+                </p>
               )}
             </div>
           )}
@@ -501,8 +564,9 @@ export function DocumentForm({
             </Button>
           )}
 
-          {(formMode === 'create' ||
-            (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
+          {(formMode === "create" ||
+            (document &&
+              ["draft", "rejected", "approved"].includes(document.status))) && (
             <Button
               type="button"
               variant="secondary"
@@ -514,8 +578,9 @@ export function DocumentForm({
             </Button>
           )}
 
-          {(formMode === 'create' ||
-            (document && ['draft', 'rejected', 'approved'].includes(document.status))) && (
+          {(formMode === "create" ||
+            (document &&
+              ["draft", "rejected", "approved"].includes(document.status))) && (
             <Button
               type="submit"
               className="bg-primary/100 hover:bg-primary/80"
