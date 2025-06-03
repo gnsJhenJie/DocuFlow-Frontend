@@ -368,19 +368,22 @@ export default function DocumentDetailPage() {
   const isReviewer = doc.reviewerId === Number(user.id);
   const isAdmin = user.role === "admin";
 
-  const canEdit = isAdmin
-    ? doc.status === "approved" ||
-      (isAuthor && ["draft", "rejected"].includes(doc.status))
-    : ["editor", "reviewer"].includes(user.role) &&
-      isAuthor &&
-      ["draft", "rejected"].includes(doc.status);
-  const canReview = isReviewer && doc.status === "pending_review";
-  const canDelete = isAdmin
-    ? doc.status === "approved" ||
-      (isAuthor && ["draft", "rejected"].includes(doc.status))
-    : ["editor", "reviewer"].includes(user.role) &&
-      isAuthor &&
-      ["draft", "rejected"].includes(doc.status);
+  const canEdit =
+    isAdmin
+      ? (doc.status === 'approved' ||
+         (isAuthor && ['draft', 'rejected'].includes(doc.status)))
+      : (['editor', 'reviewer'].includes(user.role) &&
+         isAuthor &&
+         ['draft', 'rejected', 'approved'].includes(doc.status)
+        );
+  const canReview = isReviewer && doc.status === 'pending_review';
+  const canDelete =
+    isAdmin
+      ? (doc.status === 'approved' ||
+         (isAuthor && ['draft', 'rejected'].includes(doc.status)))
+      : (['editor', 'reviewer'].includes(user.role) &&
+         isAuthor &&
+         ['draft', 'rejected'].includes(doc.status));
 
   /* ---------- render ---------- */
   if (isEditing && canEdit) {
