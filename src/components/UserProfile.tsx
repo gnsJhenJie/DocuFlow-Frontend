@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,24 +9,34 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/contexts/AuthContext';
-import { LogOut, User as UserIcon, Settings, Shield, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { useEffect } from 'react';
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  LogOut,
+  User as UserIcon,
+  Settings,
+  Shield,
+  Loader2,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect } from "react";
 
 export function UserProfile() {
   const { user, logout, loading, fetchCurrentUser } = useAuth();
 
   useEffect(() => {
-    if (!user && !loading && localStorage.getItem('docuflow_jwt_token')) {
+    if (!user && !loading && localStorage.getItem("docuflow_jwt_token")) {
       fetchCurrentUser();
     }
   }, [user, loading, fetchCurrentUser]);
 
   if (loading) {
     return (
-      <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="relative h-10 w-10 rounded-full"
+      >
         <Loader2 className="h-5 w-5 animate-spin" />
       </Button>
     );
@@ -41,7 +51,7 @@ export function UserProfile() {
   }
 
   const getAvatarFallback = (name: string) => {
-    if (!name) return '??';
+    if (!name) return "??";
     const trimmed = name.trim();
 
     const isChinese = /[\u4e00-\u9fff]/.test(trimmed);
@@ -50,14 +60,13 @@ export function UserProfile() {
     }
 
     const parts = trimmed.split(/\s+/);
-    const initials = parts.map(p => p[0]).join('');
+    const initials = parts.map((p) => p[0]).join("");
     return initials.toUpperCase(); // 顯示每個單字首字母
   };
   const fallbackInitials = getAvatarFallback(user.name);
   const fallbackAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    fallbackInitials
+    fallbackInitials,
   )}&background=E0E0E0&color=000000&size=100`;
-
 
   return (
     <DropdownMenu>
@@ -66,7 +75,7 @@ export function UserProfile() {
           <Avatar className="h-9 w-9">
             <AvatarImage
               src={user.avatarUrl || fallbackAvatarUrl}
-              alt={user.name || 'User Avatar'}
+              alt={user.name || "User Avatar"}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.onerror = null;
@@ -87,7 +96,7 @@ export function UserProfile() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {user.role === 'admin' && (
+        {user.role === "admin" && (
           <>
             <DropdownMenuItem asChild>
               <Link href="/admin" className="flex items-center">

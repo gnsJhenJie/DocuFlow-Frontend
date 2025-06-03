@@ -1,17 +1,35 @@
+"use client";
 
-'use client';
-
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Edit, Loader2 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/apiClient';
-import type { User, Role } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Users, Edit, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { apiClient } from "@/lib/apiClient";
+import type { User, Role } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 
 export default function UserManagementPage() {
   const { user: currentUser, loading: authLoading } = useAuth();
@@ -21,12 +39,12 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<Role | ''>('');
+  const [selectedRole, setSelectedRole] = useState<Role | "">("");
 
   useEffect(() => {
-    if (!authLoading && (!currentUser || currentUser.role !== 'admin')) {
-      router.push('/');
-    } else if (currentUser && currentUser.role === 'admin') {
+    if (!authLoading && (!currentUser || currentUser.role !== "admin")) {
+      router.push("/");
+    } else if (currentUser && currentUser.role === "admin") {
       fetchUsers();
     }
   }, [currentUser, authLoading, router]);
@@ -37,7 +55,11 @@ export default function UserManagementPage() {
       const fetchedUsers = await apiClient.getUsers();
       setUsers(fetchedUsers);
     } catch (error: any) {
-      toast({ title: "Error fetching users", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error fetching users",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setIsLoadingUsers(false);
     }
@@ -50,31 +72,50 @@ export default function UserManagementPage() {
 
   const handleCancelEdit = () => {
     setEditingUserId(null);
-    setSelectedRole('');
+    setSelectedRole("");
   };
 
   const handleSaveRole = async (userIdToUpdate: string) => {
     if (!selectedRole) {
-      toast({ title: "No Role Selected", description: "Please select a role.", variant: "destructive" });
+      toast({
+        title: "No Role Selected",
+        description: "Please select a role.",
+        variant: "destructive",
+      });
       return;
     }
     try {
       await apiClient.updateUserRole(userIdToUpdate, selectedRole);
-      toast({ title: "Role Updated", description: `User role changed to ${selectedRole}.` });
+      toast({
+        title: "Role Updated",
+        description: `User role changed to ${selectedRole}.`,
+      });
       setEditingUserId(null);
-      setSelectedRole('');
+      setSelectedRole("");
       fetchUsers(); // Refresh user list
     } catch (error: any) {
-      toast({ title: "Error Updating Role", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error Updating Role",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
   if (authLoading || isLoadingUsers) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin" /></div>;
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-12 w-12 animate-spin" />
+      </div>
+    );
   }
 
-  if (!currentUser || currentUser.role !== 'admin') {
-    return <p className="text-center mt-8">Access Denied. You must be an administrator to view this page.</p>;
+  if (!currentUser || currentUser.role !== "admin") {
+    return (
+      <p className="text-center mt-8">
+        Access Denied. You must be an administrator to view this page.
+      </p>
+    );
   }
 
   return (
@@ -83,13 +124,17 @@ export default function UserManagementPage() {
         <h1 className="text-3xl font-bold tracking-tight flex items-center">
           <Users className="mr-3 h-8 w-8" /> User Management
         </h1>
-        <p className="text-muted-foreground">Manage users and their roles within the application.</p>
+        <p className="text-muted-foreground">
+          Manage users and their roles within the application.
+        </p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>User List</CardTitle>
-          <CardDescription>View and manage system users. Current count: {users.length}</CardDescription>
+          <CardDescription>
+            View and manage system users. Current count: {users.length}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoadingUsers ? (
@@ -97,7 +142,9 @@ export default function UserManagementPage() {
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
             </div>
           ) : users.length === 0 ? (
-            <p className="text-muted-foreground text-center py-10">No users found.</p>
+            <p className="text-muted-foreground text-center py-10">
+              No users found.
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -115,7 +162,12 @@ export default function UserManagementPage() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
                       {editingUserId === user.id ? (
-                        <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as Role)}>
+                        <Select
+                          value={selectedRole}
+                          onValueChange={(value) =>
+                            setSelectedRole(value as Role)
+                          }
+                        >
                           <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Select role" />
                           </SelectTrigger>
@@ -133,13 +185,32 @@ export default function UserManagementPage() {
                     <TableCell className="text-right">
                       {editingUserId === user.id ? (
                         <div className="space-x-2">
-                          <Button size="sm" onClick={() => handleSaveRole(user.id)}>Save</Button>
-                          <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleSaveRole(user.id)}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCancelEdit}
+                          >
+                            Cancel
+                          </Button>
                         </div>
                       ) : (
-                        <Button variant="ghost" size="icon" onClick={() => handleEditRole(user)} disabled={user.id === currentUser.id /* Cannot edit self easily here */}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditRole(user)}
+                          disabled={
+                            user.id ===
+                            currentUser.id /* Cannot edit self easily here */
+                          }
+                        >
                           <Edit className="h-4 w-4" />
-                           <span className="sr-only">Edit Role</span>
+                          <span className="sr-only">Edit Role</span>
                         </Button>
                       )}
                     </TableCell>

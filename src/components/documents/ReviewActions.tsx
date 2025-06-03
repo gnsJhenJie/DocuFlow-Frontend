@@ -1,11 +1,11 @@
 // src/components/documents/ReviewActions.tsx
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -14,19 +14,19 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { CheckCircle2, XCircle, UserCheck2 } from 'lucide-react';
+} from "@/components/ui/select";
+import { CheckCircle2, XCircle, UserCheck2 } from "lucide-react";
 
-import type { User } from '@/lib/types';
-import { apiClient } from '@/lib/apiClient';
+import type { User } from "@/lib/types";
+import { apiClient } from "@/lib/apiClient";
 
 interface ReviewActionsProps {
   documentId: string;
@@ -54,8 +54,8 @@ export function ReviewActions({
   showReject,
 }: ReviewActionsProps) {
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [newReviewerId, setNewReviewerId] = useState<string>('');
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [newReviewerId, setNewReviewerId] = useState<string>("");
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [isLoadingReviewers, setIsLoadingReviewers] = useState<boolean>(false);
   const [potentialReviewers, setPotentialReviewers] = useState<User[]>([]);
@@ -67,13 +67,17 @@ export function ReviewActions({
       try {
         const data: User[] = await apiClient.getReviewers();
         let filtered = data;
-        filtered = filtered.filter((r) => Number(r.id) !== Number(currentUserId));
+        filtered = filtered.filter(
+          (r) => Number(r.id) !== Number(currentUserId),
+        );
         if (currentReviewerId) {
-          filtered = filtered.filter((r) => Number(r.id) !== Number(currentReviewerId));
+          filtered = filtered.filter(
+            (r) => Number(r.id) !== Number(currentReviewerId),
+          );
         }
         setPotentialReviewers(filtered);
       } catch (error) {
-        console.error('Error fetching reviewers:', error);
+        console.error("Error fetching reviewers:", error);
       } finally {
         setIsLoadingReviewers(false);
       }
@@ -85,13 +89,15 @@ export function ReviewActions({
   const handleReassignClick = () => {
     if (!newReviewerId) {
       toast({
-        title: 'Reviewer Required',
-        description: 'Please select a new reviewer before reassigning.',
-        variant: 'destructive',
+        title: "Reviewer Required",
+        description: "Please select a new reviewer before reassigning.",
+        variant: "destructive",
       });
       return;
     }
-    console.log(`[ReviewActions] Reassigning document ${documentId} to user ${newReviewerId}`);
+    console.log(
+      `[ReviewActions] Reassigning document ${documentId} to user ${newReviewerId}`,
+    );
     onReassign(newReviewerId);
     setShowReassignModal(false);
   };
@@ -104,16 +110,18 @@ export function ReviewActions({
   const handleRejectClick = () => {
     if (!rejectionReason.trim()) {
       toast({
-        title: 'Rejection Reason Required',
-        description: 'Please provide a reason for rejecting the document.',
-        variant: 'destructive',
+        title: "Rejection Reason Required",
+        description: "Please provide a reason for rejecting the document.",
+        variant: "destructive",
       });
       return;
     }
-    console.log(`[ReviewActions] Rejecting document ${documentId} with reason: ${rejectionReason}`);
+    console.log(
+      `[ReviewActions] Rejecting document ${documentId} with reason: ${rejectionReason}`,
+    );
     onReject(rejectionReason);
     setShowRejectModal(false);
-    setRejectionReason('');
+    setRejectionReason("");
   };
 
   return (
@@ -152,7 +160,8 @@ export function ReviewActions({
           <DialogHeader>
             <DialogTitle>Reject Document: {documentTitle}</DialogTitle>
             <DialogDescription>
-              Please provide a reason for rejecting this document. This feedback will be sent to the author.
+              Please provide a reason for rejecting this document. This feedback
+              will be sent to the author.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -166,9 +175,15 @@ export function ReviewActions({
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
             </DialogClose>
-            <Button type="button" onClick={handleRejectClick} variant="destructive">
+            <Button
+              type="button"
+              onClick={handleRejectClick}
+              variant="destructive"
+            >
               Submit Rejection
             </Button>
           </DialogFooter>
@@ -200,7 +215,9 @@ export function ReviewActions({
                     className="w-full justify-between px-2 rounded-md border-gray-300 bg-white text-left"
                   >
                     <SelectValue
-                      placeholder={isLoadingReviewers ? 'Loading…' : 'Select a reviewer'}
+                      placeholder={
+                        isLoadingReviewers ? "Loading…" : "Select a reviewer"
+                      }
                       className="text-left pl-2"
                     />
                   </SelectTrigger>
@@ -215,11 +232,12 @@ export function ReviewActions({
                         No eligible reviewers
                       </SelectItem>
                     )}
-                    {!isLoadingReviewers && potentialReviewers.map((rev) => (
-                      <SelectItem key={rev.id} value={rev.id}>
-                        {rev.name} ({rev.email})
-                      </SelectItem>
-                    ))}
+                    {!isLoadingReviewers &&
+                      potentialReviewers.map((rev) => (
+                        <SelectItem key={rev.id} value={rev.id}>
+                          {rev.name} ({rev.email})
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -227,7 +245,9 @@ export function ReviewActions({
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
             </DialogClose>
             <Button
               type="button"

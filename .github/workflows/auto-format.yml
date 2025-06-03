@@ -1,0 +1,57 @@
+name: Auto-format Frontend on PR
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+          fetch-depth: 0
+          persist-credentials: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'  # 根據你的 Node.js 版本選擇合適的版本
+
+    - name: Install Prettier
+      run: npm install -g prettier
+
+    - name: Run Prettier to format code
+      run: prettier --write "./**/*.{js,ts,tsx,jsx}"  # 執行 Prettier 格式化
+
+    - name: Commit and push formatted code
+      run: |
+        if ! git diff --quiet; then
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: apply Prettier formatting"
+          git push origin HEAD:${{ github.head_ref }}
+        else
+          echo "No formatting changes detected."
+        fi
+    - name: Create a new PR with formatted changes
+      if: ${{ steps.prettier_format.outcome == 'failure' }}
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        # Use the original PR's source branch as the target base, or adjust with base.ref if needed
+        base: ${{ github.event.pull_request.base.ref }}
+        branch: prettier-formatting/${{ github.event.pull_request.head.ref }}
+        title: "[Auto] Apply Prettier formatting to ${{ github.event.pull_request.head.ref }}"
+        body: |
+          This PR will apply Prettier formatting to the `.js`, `.ts`, `.jsx`, `.tsx`, `.html`, `.css`, and `.json` files in branch `${{ github.event.pull_request.head.ref }}`.
+          The target base branch is `${{ github.event.pull_request.base.ref }}`.
+        commit-message: "chore: apply Prettier formatting"
+        create-draft: false

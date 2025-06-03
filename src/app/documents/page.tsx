@@ -1,32 +1,27 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { DocumentCard } from '@/components/documents/DocumentCard';
+} from "@/components/ui/select";
+import { DocumentCard } from "@/components/documents/DocumentCard";
 import type {
   Document,
   ReviewStatus,
   PaginatedDocumentsResponse,
-} from '@/lib/types';
-import Link from 'next/link';
-import {
-  PlusCircle,
-  Search,
-  Filter,
-  Loader2,
-} from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { apiClient } from '@/lib/apiClient';
-import { useToast } from '@/hooks/use-toast';
+} from "@/lib/types";
+import Link from "next/link";
+import { PlusCircle, Search, Filter, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSearchParams, useRouter } from "next/navigation";
+import { apiClient } from "@/lib/apiClient";
+import { useToast } from "@/hooks/use-toast";
 
 const DOCUMENTS_PER_PAGE = 9;
 
@@ -40,24 +35,25 @@ export default function DocumentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ReviewStatus | 'all'>('all');
-  const [sortBy, setSortBy] = useState('updatedAt_desc');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ReviewStatus | "all">("all");
+  const [sortBy, setSortBy] = useState("updatedAt_desc");
   const [viewFilter, setViewFilter] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // 1) 解析 URL，保留 my_documents 的 status
   useEffect(() => {
-    const newSearchTerm = searchParams.get('searchTerm') || '';
-    const newSortBy = searchParams.get('sortBy') || 'updatedAt_desc';
-    const newView = searchParams.get('view');
-    const newPage = parseInt(searchParams.get('page') || '1', 10);
-    const rawStatus = (searchParams.get('status') as ReviewStatus | 'all') || 'all';
+    const newSearchTerm = searchParams.get("searchTerm") || "";
+    const newSortBy = searchParams.get("sortBy") || "updatedAt_desc";
+    const newView = searchParams.get("view");
+    const newPage = parseInt(searchParams.get("page") || "1", 10);
+    const rawStatus =
+      (searchParams.get("status") as ReviewStatus | "all") || "all";
 
     // 默认用 URL 里的 status，pending_my_review 特殊映射
     let effectiveStatus = rawStatus;
-    if (newView === 'pending_my_review') {
-      effectiveStatus = 'pending_review';
+    if (newView === "pending_my_review") {
+      effectiveStatus = "pending_review";
     }
 
     setSearchTerm(newSearchTerm);
@@ -71,23 +67,23 @@ export default function DocumentsPage() {
   // 2) 构建 API 请求参数，my_documents 分支也带上 status
   const buildApiParams = useCallback(() => {
     const params = new URLSearchParams();
-    params.append('page', String(currentPage));
-    params.append('limit', String(DOCUMENTS_PER_PAGE));
-    if (searchTerm) params.append('searchTerm', searchTerm);
-    if (sortBy) params.append('sortBy', sortBy);
+    params.append("page", String(currentPage));
+    params.append("limit", String(DOCUMENTS_PER_PAGE));
+    if (searchTerm) params.append("searchTerm", searchTerm);
+    if (sortBy) params.append("sortBy", sortBy);
 
-    if (viewFilter === 'pending_my_review' && user) {
-      params.set('view', 'pending_my_review');
-      params.set('reviewerId', user.id);
-      params.set('status', 'pending_review');
-    } else if (viewFilter === 'my_documents' && user) {
-      params.set('view', 'my_documents');
-      params.set('authorId', user.id);
-      if (statusFilter !== 'all') {
-        params.set('status', statusFilter);
+    if (viewFilter === "pending_my_review" && user) {
+      params.set("view", "pending_my_review");
+      params.set("reviewerId", user.id);
+      params.set("status", "pending_review");
+    } else if (viewFilter === "my_documents" && user) {
+      params.set("view", "my_documents");
+      params.set("authorId", user.id);
+      if (statusFilter !== "all") {
+        params.set("status", statusFilter);
       }
-    } else if (statusFilter !== 'all') {
-      params.set('status', statusFilter);
+    } else if (statusFilter !== "all") {
+      params.set("status", statusFilter);
     }
 
     return params;
@@ -96,21 +92,22 @@ export default function DocumentsPage() {
   const handleDocumentDeleted = (deletedId: string) => {
     setDocuments((prev) => prev.filter((doc) => doc.id !== deletedId));
   };
-  
+
   const fetchDocuments = useCallback(async () => {
     if (!user || authLoading) return;
     setIsLoading(true);
     try {
       const params = buildApiParams();
-      const data: PaginatedDocumentsResponse = await apiClient.getDocuments(params);
+      const data: PaginatedDocumentsResponse =
+        await apiClient.getDocuments(params);
       setDocuments(data.documents);
       setTotalPages(data.totalPages);
       setCurrentPage(data.currentPage);
     } catch (error: any) {
       toast({
-        title: 'Error Fetching Documents',
-        description: error.message || 'Could not load documents.',
-        variant: 'destructive',
+        title: "Error Fetching Documents",
+        description: error.message || "Could not load documents.",
+        variant: "destructive",
       });
       setDocuments([]);
     } finally {
@@ -122,18 +119,18 @@ export default function DocumentsPage() {
   useEffect(() => {
     if (!isInitialized) return;
     const params = new URLSearchParams();
-    if (searchTerm) params.set('searchTerm', searchTerm);
-    if (viewFilter === 'pending_my_review') {
-      params.set('view', 'pending_my_review');
-    } else if (viewFilter === 'my_documents') {
-      if (statusFilter !== 'all') params.set('status', statusFilter);
-      params.set('view', 'my_documents');
+    if (searchTerm) params.set("searchTerm", searchTerm);
+    if (viewFilter === "pending_my_review") {
+      params.set("view", "pending_my_review");
+    } else if (viewFilter === "my_documents") {
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      params.set("view", "my_documents");
     } else {
-      if (statusFilter !== 'all') params.set('status', statusFilter);
-      if (viewFilter) params.set('view', viewFilter);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (viewFilter) params.set("view", viewFilter);
     }
-    if (sortBy !== 'updatedAt_desc') params.set('sortBy', sortBy);
-    if (currentPage > 1) params.set('page', String(currentPage));
+    if (sortBy !== "updatedAt_desc") params.set("sortBy", sortBy);
+    if (currentPage > 1) params.set("page", String(currentPage));
 
     const finalQuery = params.toString();
     const currentQuery = searchParams.toString();
@@ -141,7 +138,15 @@ export default function DocumentsPage() {
       router.push(`/documents?${finalQuery}`, { scroll: false });
     }
     fetchDocuments();
-  }, [fetchDocuments, searchTerm, statusFilter, sortBy, viewFilter, currentPage, isInitialized]);
+  }, [
+    fetchDocuments,
+    searchTerm,
+    statusFilter,
+    sortBy,
+    viewFilter,
+    currentPage,
+    isInitialized,
+  ]);
 
   if (authLoading) {
     return (
@@ -161,10 +166,10 @@ export default function DocumentsPage() {
   };
 
   const handleStatusFilterChange = (value: string) => {
-    const newStatus = value as ReviewStatus | 'all';
+    const newStatus = value as ReviewStatus | "all";
     setStatusFilter(newStatus);
     setCurrentPage(1);
-    if (viewFilter === 'pending_my_review' && newStatus !== 'pending_review') {
+    if (viewFilter === "pending_my_review" && newStatus !== "pending_review") {
       setViewFilter(null);
     }
   };
@@ -174,19 +179,19 @@ export default function DocumentsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {viewFilter === 'pending_my_review'
-              ? 'Documents Pending Your Review'
-              : viewFilter === 'my_documents'
-              ? 'My Documents'
-              : statusFilter !== 'all'
-              ? `${statusFilter.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())} Documents`
-              : 'All Documents'}
+            {viewFilter === "pending_my_review"
+              ? "Documents Pending Your Review"
+              : viewFilter === "my_documents"
+                ? "My Documents"
+                : statusFilter !== "all"
+                  ? `${statusFilter.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())} Documents`
+                  : "All Documents"}
           </h1>
           <p className="text-muted-foreground">
             Manage, review, and track all your documents.
           </p>
         </div>
-        {(user.role !== 'viewer') && (
+        {user.role !== "viewer" && (
           <Link href="/documents/new">
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Create Document
@@ -220,7 +225,7 @@ export default function DocumentsPage() {
             <Select
               value={statusFilter}
               onValueChange={handleStatusFilterChange}
-              disabled={viewFilter === 'pending_my_review'}
+              disabled={viewFilter === "pending_my_review"}
             >
               <SelectTrigger id="statusFilter">
                 <SelectValue placeholder="Filter by status" />
@@ -252,8 +257,12 @@ export default function DocumentsPage() {
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="updatedAt_desc">Last Updated (Newest)</SelectItem>
-                <SelectItem value="updatedAt_asc">Last Updated (Oldest)</SelectItem>
+                <SelectItem value="updatedAt_desc">
+                  Last Updated (Newest)
+                </SelectItem>
+                <SelectItem value="updatedAt_asc">
+                  Last Updated (Oldest)
+                </SelectItem>
                 <SelectItem value="title_asc">Title (A-Z)</SelectItem>
                 <SelectItem value="title_desc">Title (Z-A)</SelectItem>
               </SelectContent>
@@ -310,13 +319,13 @@ export default function DocumentsPage() {
           <Filter className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Documents Found</h3>
           <p className="text-muted-foreground">
-            {searchTerm || statusFilter !== 'all' || viewFilter
-              ? 'Try adjusting your search or filters.'
-              : 'Get started by creating a new document.'}
+            {searchTerm || statusFilter !== "all" || viewFilter
+              ? "Try adjusting your search or filters."
+              : "Get started by creating a new document."}
           </p>
-          {(user.role === 'editor' || user.role === 'admin') &&
+          {(user.role === "editor" || user.role === "admin") &&
             !searchTerm &&
-            statusFilter === 'all' &&
+            statusFilter === "all" &&
             !viewFilter && (
               <Link href="/documents/new" className="mt-4 inline-block">
                 <Button variant="default">

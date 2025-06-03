@@ -1,0 +1,38 @@
+name: Check for Vulnerabilities and Outdated NPM Packages
+
+on:
+  push:
+    branches: ['**']  # 或你專案的主要分支名稱
+
+jobs:
+  check-dependencies:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'  # 根據你的 Node.js 版本選擇合適的版本
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run npm audit for vulnerabilities
+      run: |
+        npm audit --audit-level=high  # 僅顯示 high 等級以上的漏洞
+        audit_exit_code=$?  # 儲存 audit exit code
+        if [ $audit_exit_code -ne 0 ]; then
+          echo "Security vulnerabilities detected, aborting push."
+          exit 1  # 如果有嚴重漏洞，停止 push
+        fi
+
+    - name: Check for outdated dependencies
+      run: |
+        npm outdated || true  # 檢查過期的套件
+        outdated_count=$(npm outdated --json | jq 'length')
+        if [ "$outdated_count" -gt 0 ]; then
+          echo "There are outdated packages."
+        fi
