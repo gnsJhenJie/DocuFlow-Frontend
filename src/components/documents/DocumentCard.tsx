@@ -60,23 +60,21 @@ export function DocumentCard({
   const isAdmin = currentUser.role === "admin";
   console.log("image url", document.image_url);
 
-  const canEdit = 
-    isAdmin
-      ? (document.status === 'approved' ||
-         (isAuthor && ['draft', 'rejected'].includes(document.status)))
-      : (['editor', 'reviewer'].includes(currentUser.role) &&
-         isAuthor &&
-         ['draft', 'rejected', 'approved'].includes(document.status)
-        );
-  
-  const canReview = (isReviewer || isAdmin) && document.status === 'pending_review';
-  const canDelete =
-    isAdmin
-      ? (document.status === 'approved' ||
-         (isAuthor && ['draft', 'rejected'].includes(document.status)))
-      : (['editor', 'reviewer'].includes(currentUser.role) &&
-         isAuthor &&
-         ['draft', 'rejected'].includes(document.status));
+  const canEdit = isAdmin
+    ? document.status === "approved" ||
+      (isAuthor && ["draft", "rejected"].includes(document.status))
+    : ["editor", "reviewer"].includes(currentUser.role) &&
+      isAuthor &&
+      ["draft", "rejected", "approved"].includes(document.status);
+
+  const canReview =
+    (isReviewer || isAdmin) && document.status === "pending_review";
+  const canDelete = isAdmin
+    ? document.status === "approved" ||
+      (isAuthor && ["draft", "rejected"].includes(document.status))
+    : ["editor", "reviewer"].includes(currentUser.role) &&
+      isAuthor &&
+      ["draft", "rejected"].includes(document.status);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const router = useRouter();
