@@ -28,7 +28,7 @@ jobs:
       run: npm install -g prettier
 
     - name: Run Prettier to format code
-      run: prettier --write .  # 執行 Prettier 格式化
+      run: prettier --write "./**/*.{js,ts,tsx,jsx}"  # 執行 Prettier 格式化
 
     - name: Commit and push formatted code
       run: |
